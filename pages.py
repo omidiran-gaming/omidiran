@@ -34,17 +34,19 @@ h1{font-size:24px;line-height:1.35;font-weight:900;letter-spacing:-.03em;margin-
     <p class="sub">Enter your access key to open the command dashboard · برای ورود به پنل کلید دسترسی را وارد کنید</p>
     <div class="err" id="err"><i class="ti ti-alert-circle"></i><span id="err-text"></span></div>
     <form id="form">
-      <div class="field"><label>رمز عبور · PASSWORD</label><div class="input-shell"><input type="password" id="pw" placeholder="رمز عبور را وارد کنید" autofocus required><i class="ti ti-lock ic"></i></div></div>
+      <div class="field"><label>نام کاربری · USERNAME</label><div class="input-shell"><input type="text" id="username" placeholder="نام کاربری را وارد کنید / Enter username" autocomplete="username" autofocus required><i class="ti ti-user ic"></i></div></div>
+      <div class="field"><label>رمز عبور · PASSWORD</label><div class="input-shell"><input type="password" id="pw" placeholder="رمز عبور را وارد کنید / Enter password" autocomplete="current-password" required><i class="ti ti-lock ic"></i></div></div>
       <button class="btn" type="submit" id="btn"><i class="ti ti-terminal-2"></i> ورود به مرکز کنترل / Sign in</button>
     </form>
     <div class="meta-grid"><div class="meta"><span>NETWORK</span><b>OMID Network</b></div><div class="meta"><span>STATUS</span><b class="ok">● SYSTEM ONLINE</b></div></div>
+    <div style="margin-top:10px;text-align:center;font-size:8.5px;color:#426D79">First run default: <b style="color:#78DCEB">omid / omid</b> · Support: <a href="https://t.me/omid_gamingORG" target="_blank" style="color:#5CEBFF;text-decoration:none">@omid_gamingORG</a></div>
     <div class="foot"><span>Free For All</span><span>OMID-IRAN PANEL · v1.0</span></div>
   </div>
 </div>
 <script>
 const lb=document.getElementById('lang-login');let l=localStorage.getItem('omid-lang')||'both';
 lb.addEventListener('click',()=>{l=l==='both'?'en':l==='en'?'fa':'both';localStorage.setItem('omid-lang',l);lb.textContent=l==='both'?'FA / EN':l==='en'?'EN':'FA';});
-document.getElementById('form').addEventListener('submit',async e=>{e.preventDefault();const btn=document.getElementById('btn'),err=document.getElementById('err'),et=document.getElementById('err-text');err.classList.remove('show');btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> در حال ورود...';try{const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:document.getElementById('pw').value})});if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.detail||'خطا');}location.href='/dashboard';}catch(e){et.textContent=e.message;err.classList.add('show');btn.disabled=false;btn.innerHTML='<i class="ti ti-terminal-2"></i> ورود به مرکز کنترل / Sign in';}});
+document.getElementById('form').addEventListener('submit',async e=>{e.preventDefault();const btn=document.getElementById('btn'),err=document.getElementById('err'),et=document.getElementById('err-text');err.classList.remove('show');btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> در حال ورود...';try{const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:document.getElementById('username').value.trim(),password:document.getElementById('pw').value})});if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.detail||'خطا');}location.href='/dashboard';}catch(e){et.textContent=e.message;err.classList.add('show');btn.disabled=false;btn.innerHTML='<i class="ti ti-terminal-2"></i> ورود به مرکز کنترل / Sign in';}});
 </script></body></html>"""
 
 

@@ -136,6 +136,9 @@ DEFAULT_ALPN_BY_PROTOCOL = {
 DEFAULT_PORT = 443
 MIN_PORT, MAX_PORT = 1, 65535
 
+SUPPORT_URL = os.environ.get("SUPPORT_URL", "https://t.me/omid_gamingORG").strip()
+
+
 # محدودیت سرعت (0 = نامحدود). واحد ذخیره‌سازی داخلی همیشه بایت‌بر‌ثانیه است.
 DEFAULT_SPEED_LIMIT = 0
 
@@ -155,7 +158,8 @@ SESSION_TTL = 60 * 60 * 24 * 365
 def hash_password(pw: str) -> str:
     return hashlib.sha256(f"{pw}{CONFIG['secret']}".encode()).hexdigest()
 
-AUTH = {"password_hash": hash_password(os.environ.get("ADMIN_PASSWORD", "admin"))}
+ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "omid").strip() or "omid"
+AUTH = {"password_hash": hash_password(os.environ.get("ADMIN_PASSWORD", "omid"))}
 SESSIONS: dict = {}
 SESSIONS_LOCK = asyncio.Lock()
 
@@ -429,7 +433,7 @@ async def subscription_single(uuid: str, request: Request):
     vless = vless_link_for_link(link, uuid, host)
     content = base64.b64encode(vless.encode()).decode()
     return Response(content=content, media_type="text/plain",
-                    headers={"profile-title": quote(link["label"]), "support-url": ""})
+                    headers={"profile-title": quote(link["label"]), "support-url": SUPPORT_URL})
 
 @app.get("/sub-all")
 async def subscription_all(request: Request, _=Depends(require_auth)):
@@ -587,7 +591,7 @@ async def sub_group_subscription(uuid_key: str, request: Request):
         media_type="text/plain",
         headers={
             "profile-title": quote(sub["name"]),
-            "support-url": "",
+            "support-url": SUPPORT_URL,
             "profile-update-interval": "12",
         }
     )
@@ -597,9 +601,11 @@ async def sub_group_subscription(uuid_key: str, request: Request):
 async def api_login(request: Request):
     body = await request.json()
     ip = client_ip(request)
-    if hash_password(str(body.get("password", ""))) != AUTH["password_hash"]:
+    username = str(body.get("username", "")).strip()
+    password = str(body.get("password", ""))
+    if username != ADMIN_USERNAME or hash_password(password) != AUTH["password_hash"]:
         log_activity("auth", f"تلاش ورود ناموفق از {ip}", "err")
-        raise HTTPException(status_code=401, detail="رمز عبور اشتباه است")
+        raise HTTPException(status_code=401, detail="نام کاربری یا رمز عبور اشتباه است")
     token = await create_session()
     log_activity("auth", f"ورود موفق به پنل از {ip}", "ok")
     resp = JSONResponse({"ok": True})

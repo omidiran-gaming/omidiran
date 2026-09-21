@@ -86,12 +86,14 @@ OMID-IRAN PANEL (OMID) سریع و مدرن برای تونل‌زنی VLESS ر�
 
 | متغیر | توضیح | پیش‌فرض |
 |---|---|---|
-| `ADMIN_PASSWORD` | رمز عبور ورود به داشبورد وب | `admin` |
+| `ADMIN_USERNAME` | نام کاربری ورود به داشبورد وب | `omid` |
+| `ADMIN_PASSWORD` | رمز عبور ورود به داشبورد وب | `omid` |
 | `SECRET_KEY` | کلید امضای سشن/پسورد؛ اگر تنظیم نشود، خودکار ساخته و روی دیسک ذخیره می‌شود | — |
 | `DATA_DIR` | مسیر ذخیره‌سازی وضعیت (نیازمند Volume دائمی) | `/data` |
 | `TELEGRAM_BOT_TOKEN` | توکن ربات تلگرام (اختیاری) | — |
 | `TELEGRAM_ADMIN_IDS` | آیدی عددی ادمین‌های مجاز ربات، جدا با کاما (اختیاری) | — |
 | `RAILWAY_PUBLIC_DOMAIN` | دامنه عمومی سرویس؛ به‌صورت خودکار توسط Railway تنظیم می‌شود | `localhost` |
+| `SUPPORT_URL` | لینک پشتیبانی نمایش‌داده‌شده در پنل و Subscription | `https://t.me/omid_gamingORG` |
 
 ## ⚠️ نکته مهم
 
