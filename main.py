@@ -406,9 +406,17 @@ async def ensure_default_link():
         _default_link_created = True
 
 # ── Basic endpoints ───────────────────────────────────────────────────────────
-@app.get("/")
-async def root():
-    return {"service": "OMIDIRAN PANEL", "version": "v1.0", "status": "active", "channel": "OMID Network"}
+# @app.get("/")
+# async def root():
+#     return {"service": "OMIDIRAN PANEL", "version": "v1.0", "status": "active", "channel": "OMID Network"}
+@app.get("/", response_class=HTMLResponse)
+async def root(request: Request):
+    token = request.cookies.get(SESSION_COOKIE)
+
+    if await is_valid_session(token):
+        return RedirectResponse(url="/dashboard")
+
+    return HTMLResponse(content=LOGIN_HTML)
 
 @app.get("/health")
 async def health():
