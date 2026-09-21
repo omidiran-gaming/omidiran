@@ -19,7 +19,7 @@ import httpx
 import logging
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("OMID-IRAN_PANEL")
+logger = logging.getLogger("OMIDIRAN_PANEL")
 
 IRAN_TZ = ZoneInfo("Asia/Tehran")
 
@@ -201,7 +201,7 @@ async def startup():
     await load_state()
     await _tg_start_bot()
     log_activity("system", "سرور راه‌اندازی شد", "ok")
-    logger.info(f"OMIDIRAN PANEL v1.0 started on port {CONFIG['port']}")
+    logger.info(f"OMID-IRAN PANEL v1.0 started on port {CONFIG['port']}")
 
 @app.on_event("shutdown")
 async def shutdown():
@@ -285,7 +285,7 @@ def vless_link_for_link(link: dict, uid: str, host: str) -> str:
     proto = link.get("protocol", DEFAULT_PROTOCOL)
     return generate_vless_link(
         uid, host,
-        remark=f"OMID-{link.get('label', '')}",
+        remark=f"OMID-{link.get('label','')}",
         protocol=proto,
         fingerprint=link.get("fingerprint"),
         alpn=link.get("alpn"),
@@ -406,16 +406,11 @@ async def ensure_default_link():
         _default_link_created = True
 
 # ── Basic endpoints ───────────────────────────────────────────────────────────
-# @app.get("/")
-# async def root():
-#     return {"service": "OMIDIRAN PANEL", "version": "v1.0", "status": "active", "channel": "OMID Network"}
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
     token = request.cookies.get(SESSION_COOKIE)
-
     if await is_valid_session(token):
         return RedirectResponse(url="/dashboard")
-
     return HTMLResponse(content=LOGIN_HTML)
 
 @app.get("/health")
@@ -1124,14 +1119,12 @@ from pages import LOGIN_HTML, DASHBOARD_HTML
 
 @app.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
-    if await is_valid_session(request.cookies.get(SESSION_COOKIE)):
-        return RedirectResponse(url="/dashboard")
-    return HTMLResponse(content=LOGIN_HTML)
+    return RedirectResponse(url="/")
 
 @app.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
     if not await is_valid_session(request.cookies.get(SESSION_COOKIE)):
-        return RedirectResponse(url="/login")
+        return RedirectResponse(url="/")
     await ensure_default_link()
     return HTMLResponse(content=DASHBOARD_HTML)
 

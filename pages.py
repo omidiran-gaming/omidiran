@@ -1,4 +1,4 @@
-# pages.py - OMIDIRAN PANEL v1.0
+# pages.py - OMID-IRAN PANEL v1.0
 # شامل: LOGIN_HTML, DASHBOARD_HTML, get_public_page_html()
 
 # لوگوی OMID (به‌صورت base64 داخلی)
@@ -8,115 +8,51 @@ LOGIN_HTML = r"""<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ورود · OMIDIRAN PANEL</title>
+<title>OMID-IRAN PANEL · Login</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-:root{--bg:#060f1d;--card:rgba(10,22,40,0.9);--accent:#3B82F6;--text:#E8F4FF;--dim:#3D6B8E;--mid:#7BAED4;--border:rgba(59,130,246,0.2)}
-html,body{height:100%;overflow:hidden}
-body{font-family:'Vazirmatn',sans-serif;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px}
-.bg{position:fixed;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 0%,rgba(59,130,246,0.1),transparent 70%),var(--bg);z-index:0}
-.grid{position:fixed;inset:0;background-image:linear-gradient(rgba(59,130,246,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(59,130,246,0.04) 1px,transparent 1px);background-size:44px 44px;z-index:0}
-.orb{position:fixed;border-radius:50%;filter:blur(90px);z-index:0;animation:fl 9s ease-in-out infinite}
-.o1{width:380px;height:380px;background:rgba(59,130,246,0.07);top:-100px;right:-80px}
-.o2{width:280px;height:280px;background:rgba(16,185,129,0.04);bottom:-60px;left:-60px;animation-delay:4s}
-@keyframes fl{0%,100%{transform:translateY(0)}50%{transform:translateY(-18px)}}
-.wrap{position:relative;z-index:10;width:100%;max-width:400px}
-.card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:38px 34px 34px;backdrop-filter:blur(24px);box-shadow:0 0 80px rgba(59,130,246,0.07),0 20px 60px rgba(0,0,0,.5)}
-.brand{display:flex;align-items:center;gap:14px;margin-bottom:28px}
-.brand-img{width:48px;height:48px;border-radius:50%;overflow:hidden;border:1px solid var(--border);box-shadow:0 0 20px rgba(139,92,246,0.35),0 0 12px rgba(59,130,246,0.3);flex-shrink:0}
-.brand-img img{width:100%;height:100%;object-fit:cover}
-.brand-name{font-size:16px;font-weight:700;color:var(--text)}
-.brand-sub{font-size:11px;color:var(--dim);margin-top:2px}
-h1{font-size:21px;font-weight:700;color:var(--text);margin-bottom:5px;letter-spacing:-.02em}
-.sub{font-size:12px;color:var(--mid);margin-bottom:24px;line-height:1.6}
-.hint{display:flex;align-items:center;gap:10px;background:rgba(59,130,246,0.07);border:1px solid rgba(59,130,246,0.15);border-radius:10px;padding:10px 14px;margin-bottom:20px}
-.hint-label{font-size:11px;color:var(--dim);flex:1}
-.hint-val{font-family:ui-monospace,monospace;font-size:14px;font-weight:700;color:var(--accent);background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.25);padding:3px 11px;border-radius:7px;cursor:pointer;transition:.15s;letter-spacing:.08em}
-.hint-val:hover{background:rgba(59,130,246,0.22)}
-.field{margin-bottom:18px}
-.field label{display:block;font-size:10.5px;font-weight:600;color:var(--mid);margin-bottom:7px;text-transform:uppercase;letter-spacing:.06em}
-.inp-wrap{position:relative}
-input[type=password]{width:100%;padding:13px 44px 13px 16px;border-radius:11px;border:1px solid var(--border);background:rgba(0,0,0,.3);color:var(--text);font-family:inherit;font-size:14px;outline:none;transition:.2s}
-input[type=password]:focus{border-color:rgba(59,130,246,.55);background:rgba(0,0,0,.4);box-shadow:0 0 0 3px rgba(59,130,246,.1)}
-.ic{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--dim);font-size:18px;pointer-events:none;transition:.2s}
-input:focus+.ic{color:var(--accent)}
-.err{display:none;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#F87171;align-items:center;gap:8px}
-.err.show{display:flex}
-.btn{width:100%;padding:13px;border-radius:11px;border:none;cursor:pointer;background:linear-gradient(135deg,#2F8FFF,#8B5CF6);color:#fff;font-family:inherit;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 20px rgba(139,92,246,.35);transition:.2s;position:relative;overflow:hidden}
-.btn::before{content:'';position:absolute;inset:0;background:rgba(255,255,255,.08);opacity:0;transition:.2s}
-.btn:hover::before{opacity:1}
-.btn:disabled{opacity:.5;cursor:not-allowed}
-.footer{margin-top:22px;padding-top:18px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:center;gap:8px;font-size:11px;color:var(--dim)}
-.footer a{color:var(--accent);font-weight:600;text-decoration:none;display:flex;align-items:center;gap:4px}
-@keyframes spin{to{transform:rotate(360deg)}}
-
-/* OMIDIRAN PANEL identity / glass UI */
-:root{--bg:#050B14;--card:rgba(8,22,36,.72);--accent:#0B6F86;--accent2:#45C7E8;--dim:#5D87A0;--mid:#A3C8D7;--border:rgba(69,199,232,.20)}
-body{background:radial-gradient(circle at 18% 12%,rgba(0,123,153,.14),transparent 34%),radial-gradient(circle at 82% 85%,rgba(0,64,92,.18),transparent 34%),var(--bg)}
-.card{background:linear-gradient(145deg,rgba(10,27,43,.82),rgba(5,14,24,.68));border-color:rgba(69,199,232,.22);box-shadow:0 24px 80px rgba(0,0,0,.52),0 0 40px rgba(0,120,150,.10);border-radius:28px}
-.brand-img{border-radius:14px;box-shadow:0 0 24px rgba(0,174,206,.25),0 0 10px rgba(255,0,177,.16)}
-.btn{background:linear-gradient(135deg,#075E73,#0C9BB7 55%,#1E6A9A);box-shadow:0 8px 26px rgba(3,125,155,.25)}
-.hint{background:rgba(7,95,117,.11);border-color:rgba(69,199,232,.16)}
-.hint-val{color:#7DE1F4;background:rgba(7,95,117,.12);border-color:rgba(69,199,232,.22)}
-input[type=password]{border-radius:14px;background:rgba(0,0,0,.24)}
-</style>
-</head>
+*{box-sizing:border-box;margin:0;padding:0}html,body{min-height:100%;font-family:'Vazirmatn',sans-serif;background:#02070c;color:#E7FBFF}body{display:grid;place-items:center;overflow:hidden;position:relative}
+body::before{content:"";position:fixed;inset:0;background:radial-gradient(circle at 16% 12%,rgba(17,173,201,.16),transparent 28%),radial-gradient(circle at 85% 80%,rgba(103,55,166,.13),transparent 25%),linear-gradient(rgba(74,225,247,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(74,225,247,.022) 1px,transparent 1px);background-size:auto,auto,40px 40px,40px 40px;pointer-events:none}
+.scan{position:fixed;left:0;right:0;top:0;height:1px;background:linear-gradient(90deg,transparent,#58E9FF,transparent);box-shadow:0 0 22px #58E9FF;animation:scan 5.5s linear infinite;opacity:.6}@keyframes scan{0%{transform:translateY(0)}100%{transform:translateY(100vh)}}
+.shell{width:min(460px,calc(100% - 28px));position:relative;z-index:2}.hud{display:flex;justify-content:space-between;align-items:center;margin-bottom:13px}.kicker{font-size:9px;letter-spacing:.18em;color:#4D7B88;font-weight:800}.lang{border:1px solid rgba(78,223,244,.18);background:rgba(9,44,56,.34);color:#82E7F6;border-radius:10px;padding:8px 10px;font:700 10px Vazirmatn,sans-serif;cursor:pointer}
+.card{background:linear-gradient(145deg,rgba(6,27,39,.86),rgba(2,12,18,.76));border:1px solid rgba(74,220,239,.17);border-radius:28px;padding:28px;box-shadow:0 35px 110px rgba(0,0,0,.56),inset 0 1px 0 rgba(255,255,255,.03);backdrop-filter:blur(24px);position:relative;overflow:hidden}.card::before{content:"";position:absolute;inset:0;background:linear-gradient(120deg,transparent 0 38%,rgba(85,230,248,.04) 46%,transparent 56%);pointer-events:none}
+.brand{display:flex;align-items:center;gap:13px;margin-bottom:25px}.brand-img{width:56px;height:56px;border-radius:16px;overflow:hidden;border:1px solid rgba(84,228,247,.22);box-shadow:0 0 30px rgba(11,167,196,.20)}.brand-img img{width:100%;height:100%;object-fit:cover}.brand-name{font-size:15px;font-weight:900;letter-spacing:.04em}.brand-sub{font-size:9px;color:#5993A2;margin-top:3px;text-transform:uppercase;letter-spacing:.13em}
+h1{font-size:24px;line-height:1.35;font-weight:900;letter-spacing:-.03em;margin-bottom:8px}p.sub{font-size:11px;color:#6D98A5;line-height:1.9;margin-bottom:20px}.accent{color:#5CEBFF;text-shadow:0 0 18px rgba(92,235,255,.16)}
+.err{display:none;align-items:center;gap:8px;background:rgba(255,93,112,.08);border:1px solid rgba(255,93,112,.22);color:#FF9AA8;border-radius:12px;padding:10px 12px;font-size:11px;margin-bottom:14px}.err.show{display:flex}.field{margin-bottom:14px}.field label{display:block;font-size:10px;color:#5D8794;margin-bottom:6px;font-weight:700}.input-shell{position:relative}.input-shell input{width:100%;height:48px;background:rgba(0,8,13,.52);border:1px solid rgba(72,219,240,.12);border-radius:13px;color:#E7FBFF;padding:0 44px 0 14px;outline:none;font:500 13px Vazirmatn,sans-serif;transition:.18s}.input-shell input:focus{border-color:rgba(87,229,250,.45);box-shadow:0 0 0 3px rgba(11,167,196,.08),0 0 30px rgba(11,167,196,.06)}.ic{position:absolute;right:15px;top:50%;transform:translateY(-50%);color:#4C8290;font-size:17px}
+.btn{width:100%;height:50px;border:none;border-radius:13px;background:linear-gradient(135deg,#07677C,#0BA4BE 58%,#1D638D);color:#fff;font:800 13px Vazirmatn,sans-serif;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 10px 32px rgba(0,125,153,.22);transition:.18s}.btn:hover{transform:translateY(-2px);filter:brightness(1.08)}.btn:disabled{opacity:.6;transform:none}
+.meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px}.meta{padding:10px 11px;border-radius:12px;border:1px solid rgba(74,220,239,.08);background:rgba(8,30,39,.28)}.meta span{display:block;font-size:7px;color:#3F6875;letter-spacing:.12em;margin-bottom:3px}.meta b{font-size:9px;color:#8FC8D4}.foot{display:flex;justify-content:space-between;gap:10px;margin-top:14px;color:#3F6875;font-size:8.5px}.ok{color:#56DDB0}@keyframes spin{to{transform:rotate(360deg)}}
+@media(max-width:520px){.card{padding:22px;border-radius:23px}h1{font-size:21px}}
+</style></head>
 <body>
-<div class="bg"></div><div class="grid"></div>
-<div class="orb o1"></div><div class="orb o2"></div>
-<div class="wrap">
+<div class="scan"></div><div class="shell">
+  <div class="hud"><span class="kicker">OMID-01 / SECURE ACCESS GATE</span><button class="lang" id="lang-login" type="button">FA / EN</button></div>
   <div class="card">
-    <div class="brand">
-      <div class="brand-img"><img src="data:image/png;base64,__LOGO_B64__" alt="OMID"></div>
-      <div><div class="brand-name">OMIDIRAN PANEL</div><div class="brand-sub">OMID · v1.0</div></div>
-    </div>
-    <h1>ورود به پنل · OMIDIRAN PANEL</h1>
-    <p class="sub">Enter your password to access the dashboard · رمز عبور را برای دسترسی وارد کنید</p>
+    <div class="brand"><div class="brand-img"><img src="data:image/png;base64,__LOGO_B64__" alt="OMID"></div><div><div class="brand-name">OMID-IRAN PANEL</div><div class="brand-sub">Free For All · v1.0</div></div></div>
+    <h1>ورود به <span class="accent">OMID-IRAN PANEL</span></h1>
+    <p class="sub">Enter your access key to open the command dashboard · برای ورود به پنل کلید دسترسی را وارد کنید</p>
     <div class="err" id="err"><i class="ti ti-alert-circle"></i><span id="err-text"></span></div>
-    <div class="hint">
-      <span class="hint-label">رمز پیش‌فرض سیستم</span>
-      <span class="hint-val" onclick="document.getElementById('pw').value='admin';document.getElementById('pw').focus()">admin</span>
-    </div>
     <form id="form">
-      <div class="field">
-        <label>رمز عبور</label>
-        <div class="inp-wrap">
-          <input type="password" id="pw" placeholder="رمز عبور را وارد کنید" autofocus required>
-          <i class="ti ti-lock ic"></i>
-        </div>
-      </div>
-      <button class="btn" type="submit" id="btn"><i class="ti ti-login-2"></i> ورود / Sign in</button>
+      <div class="field"><label>رمز عبور · PASSWORD</label><div class="input-shell"><input type="password" id="pw" placeholder="رمز عبور را وارد کنید" autofocus required><i class="ti ti-lock ic"></i></div></div>
+      <button class="btn" type="submit" id="btn"><i class="ti ti-terminal-2"></i> ورود به مرکز کنترل / Sign in</button>
     </form>
-    <div class="footer"></div>
+    <div class="meta-grid"><div class="meta"><span>NETWORK</span><b>OMID Network</b></div><div class="meta"><span>STATUS</span><b class="ok">● SYSTEM ONLINE</b></div></div>
+    <div class="foot"><span>Free For All</span><span>OMID-IRAN PANEL · v1.0</span></div>
   </div>
 </div>
 <script>
-document.getElementById('form').addEventListener('submit',async e=>{
-  e.preventDefault();
-  const btn=document.getElementById('btn'),err=document.getElementById('err'),et=document.getElementById('err-text');
-  err.classList.remove('show');btn.disabled=true;
-  btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> در حال ورود...';
-  try{
-    const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:document.getElementById('pw').value})});
-    if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.detail||'خطا');}
-    location.href='/dashboard';
-  }catch(e){
-    et.textContent=e.message;err.classList.add('show');
-    btn.disabled=false;btn.innerHTML='<i class="ti ti-login-2"></i> ورود به داشبورد';
-  }
-});
-</script>
-</body></html>"""
+const lb=document.getElementById('lang-login');let l=localStorage.getItem('omid-lang')||'both';
+lb.addEventListener('click',()=>{l=l==='both'?'en':l==='en'?'fa':'both';localStorage.setItem('omid-lang',l);lb.textContent=l==='both'?'FA / EN':l==='en'?'EN':'FA';});
+document.getElementById('form').addEventListener('submit',async e=>{e.preventDefault();const btn=document.getElementById('btn'),err=document.getElementById('err'),et=document.getElementById('err-text');err.classList.remove('show');btn.disabled=true;btn.innerHTML='<i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i> در حال ورود...';try{const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:document.getElementById('pw').value})});if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.detail||'خطا');}location.href='/dashboard';}catch(e){et.textContent=e.message;err.classList.add('show');btn.disabled=false;btn.innerHTML='<i class="ti ti-terminal-2"></i> ورود به مرکز کنترل / Sign in';}});
+</script></body></html>"""
 
 
 DASHBOARD_HTML = r"""<!DOCTYPE html>
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OMIDIRAN PANEL · OMID</title>
+<title>OMID-IRAN PANEL · OMID</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
@@ -696,7 +632,7 @@ a{color:inherit;text-decoration:none}
   .sub-grid,.cfg-grid,.conn-grid{grid-template-columns:1fr}
 }
 
-/* ═════ OMIDIRAN PANEL v1.0 — glassmorphism theme override ═════ */
+/* ═════ OMID-IRAN PANEL v1.0 — glassmorphism theme override ═════ */
 :root{
  --bg:#040A12;--bg2:rgba(7,18,29,.82);--bg3:#0A2430;
  --card:rgba(8,25,38,.60);--card-b:rgba(69,199,232,.13);--card-bh:rgba(69,199,232,.30);
@@ -736,7 +672,54 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;background:li
 .modal-bg{backdrop-filter:blur(8px)}
 /* medium motion */
 .metric,.card,.btn,.nav-it,.traf-mini{transition-duration:.22s}
-.lang-btn{display:flex;align-items:center;justify-content:center;gap:6px;background:rgba(11,115,141,.12);border:1px solid rgba(69,199,232,.14);color:#8FE4F3;border-radius:10px;padding:8px 10px;font:600 11px Vazirmatn,sans-serif;cursor:pointer;transition:.18s;width:100%;margin-bottom:7px}.lang-btn:hover{background:rgba(11,115,141,.20);border-color:rgba(69,199,232,.25);transform:translateY(-1px)}.lang-wide{letter-spacing:.02em}.mob-right .lang-btn{width:auto;height:34px;margin:0;padding:0 9px;font-size:9.5px}body.ui-en .nav-it{font-size:0} body.ui-en .nav-it::after{font-size:12px} body.ui-en .nav-it[data-pg="overview"]::after{content:"Dashboard"} body.ui-en .nav-it[data-pg="links"]::after{content:"Configurations"} body.ui-en .nav-it[data-pg="subgroups"]::after{content:"Subscription Groups"} body.ui-en .nav-it[data-pg="subscriptions"]::after{content:"Subscriptions"} body.ui-en .nav-it[data-pg="traffic"]::after{content:"Traffic"} body.ui-en .nav-it[data-pg="connections"]::after{content:"Connections"} body.ui-en .nav-it[data-pg="security"]::after{content:"Security"} body.ui-en .nav-it[data-pg="logs"]::after{content:"Activity Logs"} body.ui-en .nav-it[data-pg="errors"]::after{content:"Errors"} body.ui-en .nav-it[data-pg="testws"]::after{content:"WebSocket Test"} body.ui-en .nav-it[data-pg="settings"]::after{content:"Settings"} body.ui-en .nav-it[data-pg="support"]::after{content:"Support"} body.ui-en .nav-sec{font-size:0} body.ui-en .nav-sec:first-child::after{content:"PANEL";font-size:10px} body.ui-en .nav-sec:nth-of-type(2)::after{content:"SYSTEM";font-size:10px}</style>
+.lang-btn{display:flex;align-items:center;justify-content:center;gap:6px;background:rgba(11,115,141,.12);border:1px solid rgba(69,199,232,.14);color:#8FE4F3;border-radius:10px;padding:8px 10px;font:600 11px Vazirmatn,sans-serif;cursor:pointer;transition:.18s;width:100%;margin-bottom:7px}.lang-btn:hover{background:rgba(11,115,141,.20);border-color:rgba(69,199,232,.25);transform:translateY(-1px)}.lang-wide{letter-spacing:.02em}.mob-right .lang-btn{width:auto;height:34px;margin:0;padding:0 9px;font-size:9.5px}body.ui-en .nav-it{font-size:0} body.ui-en .nav-it::after{font-size:12px} body.ui-en .nav-it[data-pg="overview"]::after{content:"Dashboard"} body.ui-en .nav-it[data-pg="links"]::after{content:"Configurations"} body.ui-en .nav-it[data-pg="subgroups"]::after{content:"Subscription Groups"} body.ui-en .nav-it[data-pg="subscriptions"]::after{content:"Subscriptions"} body.ui-en .nav-it[data-pg="traffic"]::after{content:"Traffic"} body.ui-en .nav-it[data-pg="connections"]::after{content:"Connections"} body.ui-en .nav-it[data-pg="security"]::after{content:"Security"} body.ui-en .nav-it[data-pg="logs"]::after{content:"Activity Logs"} body.ui-en .nav-it[data-pg="errors"]::after{content:"Errors"} body.ui-en .nav-it[data-pg="testws"]::after{content:"WebSocket Test"} body.ui-en .nav-it[data-pg="settings"]::after{content:"Settings"} body.ui-en .nav-it[data-pg="support"]::after{content:"Support"} body.ui-en .nav-sec{font-size:0} body.ui-en .nav-sec:first-child::after{content:"PANEL";font-size:10px} body.ui-en .nav-sec:nth-of-type(2)::after{content:"SYSTEM";font-size:10px}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   OMID-IRAN PANEL · GAMING ENGINEERING HUD
+   Glass surfaces + cockpit layout + teal/cyan telemetry
+   ═══════════════════════════════════════════════════════════════════════ */
+:root{
+  --bg:#02070c;--bg2:rgba(4,13,20,.86);--bg3:#071722;
+  --card:rgba(6,20,30,.68);--card-b:rgba(56,211,229,.14);--card-bh:rgba(56,211,229,.34);
+  --accent:#0BA7C4;--accent2:#56E7FF;--accent-d:rgba(11,167,196,.13);
+  --green:#26E6A3;--green-bg:rgba(38,230,163,.10);--green-t:#6DFFC3;
+  --red:#FF5D70;--red-bg:rgba(255,93,112,.10);--red-t:#FF9AA8;
+  --amber:#FFB84D;--amber-bg:rgba(255,184,77,.10);--amber-t:#FFD892;
+  --purple:#B277FF;--purple-bg:rgba(178,119,255,.10);
+  --t1:#E8FBFF;--t2:#8DB8C7;--t3:#4C7381;
+  --sidebar-w:286px;--radius:22px;--shadow:0 18px 60px rgba(0,0,0,.38);
+}
+html,body{background:#02070c;overflow-x:hidden}
+body{background:
+ radial-gradient(900px 520px at 8% 0%,rgba(0,174,204,.11),transparent 62%),
+ radial-gradient(700px 500px at 92% 88%,rgba(25,76,100,.13),transparent 64%),
+ #02070c;letter-spacing:.01em}
+body::after{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.48;background-image:linear-gradient(rgba(84,227,246,.033) 1px,transparent 1px),linear-gradient(90deg,rgba(84,227,246,.025) 1px,transparent 1px);background-size:38px 38px;mask-image:linear-gradient(to bottom,black,transparent 85%)}
+body::before{content:"";position:fixed;left:0;right:0;top:82px;height:1px;background:linear-gradient(90deg,transparent,rgba(83,228,249,.35),transparent);box-shadow:0 0 18px rgba(83,228,249,.18);z-index:0;pointer-events:none}
+.sidebar{left:0;right:auto;width:var(--sidebar-w);border-left:0;border-right:1px solid rgba(67,211,231,.16);background:linear-gradient(180deg,rgba(4,17,25,.93),rgba(2,9,15,.94));backdrop-filter:blur(28px);box-shadow:18px 0 60px rgba(0,0,0,.26)}
+.logo{padding:21px 18px 17px;border-bottom:1px solid rgba(71,209,232,.12);gap:13px}
+.logo-img,.mob-logo{border-radius:16px;border:1px solid rgba(86,231,255,.20);box-shadow:0 0 26px rgba(11,167,196,.24),0 0 8px rgba(178,119,255,.10);background:#031017}
+.logo-name{font-size:13px;font-weight:900;letter-spacing:.035em;color:#E9FCFF}.logo-sub{color:#67ACBE;font-size:10px}.logo-meta{font-size:8px;color:#3E6775;margin-top:4px;letter-spacing:.12em;font-weight:700}
+.nav-wrap{padding:10px 8px 12px}.nav-sec{padding:15px 12px 7px;color:#3E6978;letter-spacing:.18em;font-size:9px}.nav-it{border-left:2px solid transparent;border-right:0;border-radius:13px;margin:3px 4px;padding:10px 12px;color:#607F8C;position:relative;overflow:hidden;transition:.18s}.nav-it::after{transition:.18s}.nav-it:hover{background:linear-gradient(90deg,rgba(13,147,174,.12),rgba(13,147,174,.03));color:#B9E8F1;transform:translateX(3px)}.nav-it.on{background:linear-gradient(90deg,rgba(9,154,182,.20),rgba(9,154,182,.035));color:#E6FBFF;border-left-color:#4DE5FB;box-shadow:inset 0 0 30px rgba(11,167,196,.06),0 0 24px rgba(11,167,196,.05)}.nav-it.on::before{content:"";position:absolute;left:0;top:7px;bottom:7px;width:3px;background:linear-gradient(180deg,#73F1FF,#0787A4);border-radius:0 6px 6px 0;box-shadow:0 0 14px rgba(86,231,255,.60)}.nav-it i{color:#4C8290}.nav-it.on i{color:#62E9FF}.nav-badge{margin-right:auto;background:rgba(77,229,251,.09);border:1px solid rgba(77,229,251,.09);color:#64DCEC;padding:2px 7px}
+.side-telemetry{margin:13px 12px 2px;padding:12px;border:1px solid rgba(67,211,231,.11);border-radius:15px;background:linear-gradient(135deg,rgba(9,43,55,.50),rgba(3,16,24,.34));box-shadow:inset 0 0 25px rgba(11,167,196,.035)}.telemetry-head{display:flex;justify-content:space-between;align-items:center;font-size:8px;color:#3F7786;letter-spacing:.16em;font-weight:800;margin-bottom:9px}.telemetry-led{width:6px;height:6px;border-radius:50%;background:#35E5AA;box-shadow:0 0 10px #35E5AA}.telemetry-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.telemetry-grid div{display:flex;flex-direction:column;gap:2px}.telemetry-grid span{font-size:7px;color:#426A77;letter-spacing:.11em}.telemetry-grid b{font-size:9px;color:#9FD0DC;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-foot{padding:13px 14px;border-top:1px solid rgba(67,211,231,.10);background:linear-gradient(180deg,transparent,rgba(4,18,26,.38))}.side-lang,.theme-btn,.logout-btn{border-radius:12px}.side-lang{display:flex;align-items:center;justify-content:center;gap:7px;background:rgba(11,167,196,.07);border:1px solid rgba(76,216,235,.13);color:#79D8E8;padding:9px;font:700 11px Vazirmatn,sans-serif;cursor:pointer;width:100%;margin-bottom:7px;transition:.18s}.side-lang:hover{background:rgba(11,167,196,.13);transform:translateY(-1px)}
+.theme-btn{background:rgba(10,84,102,.10);border-color:rgba(67,211,231,.10);color:#8DB8C7}.logout-btn{background:rgba(255,93,112,.07);border-color:rgba(255,93,112,.14);color:#FF9BAA}
+.mob-top{display:flex;position:fixed;top:0;left:0;right:0;height:68px;background:linear-gradient(180deg,rgba(3,11,17,.92),rgba(3,11,17,.75));border-bottom:1px solid rgba(67,211,231,.11);backdrop-filter:blur(24px);z-index:150;align-items:center;justify-content:space-between;padding:0 18px 0 calc(var(--sidebar-w) + 18px);box-shadow:0 10px 35px rgba(0,0,0,.14)}
+.mob-top .ml{display:flex;align-items:center;gap:11px}.mob-logo{width:34px;height:34px}.mob-brand-copy{display:flex;flex-direction:column;gap:1px}.mob-title{color:#E9FCFF;font-size:13px;font-weight:900;letter-spacing:.04em}.mob-subtitle{color:#4C8190;font-size:8.5px;letter-spacing:.10em;text-transform:uppercase;font-weight:700}.mob-right{display:flex;align-items:center;gap:8px}.top-status{display:inline-flex;align-items:center;gap:6px;color:#64C4D4;font-size:8px;font-weight:800;letter-spacing:.10em;padding:7px 10px;border:1px solid rgba(39,230,163,.11);background:rgba(39,230,163,.05);border-radius:999px}.mob-right .lang-btn{width:auto;height:36px;margin:0;padding:0 12px;border-radius:10px;background:rgba(11,167,196,.08);border-color:rgba(77,229,251,.16);color:#7CE6F4}.theme-mob{border-radius:10px;border-color:rgba(77,229,251,.12);background:rgba(11,167,196,.07);color:#75D8E8}.menu-btn{display:none}
+.main{margin-right:0;margin-left:var(--sidebar-w);padding:98px 28px 60px;position:relative;z-index:1}
+.topbar{margin-bottom:24px}.tb-title{font-size:20px;font-weight:850;letter-spacing:-.025em}.tb-sub{color:#4D7B88}.tb-title i{color:#51E2F8;text-shadow:0 0 14px rgba(81,226,248,.35)}
+.metric,.card,.create-panel,.vless-box,.modal,.modal-v2,.traf-chart-card,.traf-main-stat,.traf-mini{background:linear-gradient(145deg,rgba(7,29,40,.69),rgba(3,15,23,.56));border:1px solid rgba(75,213,234,.13);backdrop-filter:blur(20px);box-shadow:0 16px 42px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.025)}
+.metric{border-radius:20px;padding:18px;min-height:145px}.metric:hover{transform:translateY(-4px);border-color:rgba(87,227,247,.28);box-shadow:0 18px 48px rgba(0,0,0,.28),0 0 28px rgba(11,167,196,.06)}.metric::after{width:2px;background:linear-gradient(180deg,#62E9FF,#08768E);opacity:1;height:45%;top:18px;border-radius:2px}
+.m-icon{border-radius:11px;background:rgba(11,167,196,.08);color:#58DDEF;box-shadow:0 0 24px rgba(11,167,196,.10)}.m-label{color:#557D89}.m-val{font-size:30px;font-weight:900}.m-sub{color:#466C79}
+.vless-box{border-radius:22px;padding:22px 24px}.vl-code{background:rgba(0,5,9,.38);border-color:rgba(83,222,242,.14);color:#72E9FF;box-shadow:inset 0 0 30px rgba(0,0,0,.18)}.vl-title{color:#9ECFD9}.btn-p{background:linear-gradient(135deg,#07667B,#0A9FB8 58%,#116F99);border:1px solid rgba(95,232,251,.18);box-shadow:0 10px 26px rgba(0,127,154,.18)}.btn-p:hover{filter:brightness(1.08);transform:translateY(-1px)}.btn-g{background:rgba(12,145,169,.10);border-color:rgba(83,222,242,.14);color:#72DDEB}.btn-o{background:rgba(255,255,255,.018);border-color:rgba(83,222,242,.10)}.btn-pur{background:rgba(167,105,241,.10);border-color:rgba(178,119,255,.17)}
+.cfg-card,.conn-card{background:linear-gradient(145deg,rgba(6,23,33,.74),rgba(3,12,19,.64));border-color:rgba(75,213,234,.12);border-radius:18px}.cfg-card:hover,.conn-card:hover{border-color:rgba(80,227,247,.27);transform:translateY(-2px);box-shadow:0 15px 35px rgba(0,0,0,.20)}
+.modal-bg{background:rgba(0,5,9,.72);backdrop-filter:blur(14px)}.modal,.modal-v2{border-color:rgba(83,222,242,.16);box-shadow:0 30px 90px rgba(0,0,0,.50),0 0 60px rgba(11,167,196,.07)}
+.toast{backdrop-filter:blur(20px);border-color:rgba(83,222,242,.16);box-shadow:0 16px 50px rgba(0,0,0,.36)}
+/* responsive cockpit */
+@media(max-width:1050px){.sidebar{right:auto;left:0;transform:translateX(-105%)}.sidebar.open{transform:translateX(0);box-shadow:18px 0 55px rgba(0,0,0,.55)}.sb-close{display:flex;right:12px;left:auto}.main{margin-left:0;padding-top:86px}.mob-top{padding:0 14px}.menu-btn{display:flex}}
+@media(max-width:560px){.top-status{display:none}.mob-top{height:62px}.main{padding:78px 12px 44px}.tb-title{font-size:17px}.metrics{grid-template-columns:1fr 1fr!important;gap:9px}.metric{min-height:125px;padding:14px}.m-val{font-size:24px}}
+@media(max-width:390px){.metrics{grid-template-columns:1fr!important}}
+</style>
 </head>
 <body>
 <div class="toast" id="toast"></div>
@@ -847,10 +830,11 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;background:li
 <div class="mob-top">
   <div class="ml">
     <div class="mob-logo"><img src="data:image/png;base64,__LOGO_B64__" alt="OMID"></div>
-    <span class="mob-title">OMID</span>
+    <div class="mob-brand-copy"><span class="mob-title">OMID-IRAN PANEL</span><span class="mob-subtitle">Free For All · v1.0</span></div>
   </div>
   <div class="mob-right">
-    <button class="lang-btn" onclick="toggleUiLang()" id="lang-mob-btn">FA / EN</button>
+    <span class="top-status"><span class="dot dg pulse"></span> SYSTEM ONLINE</span>
+    <button class="lang-btn" onclick="toggleUiLang()" id="lang-btn">FA / EN</button>
     <button class="theme-mob" id="theme-mob-btn" onclick="toggleTheme()"><i class="ti ti-sun" id="theme-mob-icon"></i></button>
     <button class="menu-btn" id="open-sb"><i class="ti ti-menu-2"></i></button>
   </div>
@@ -860,7 +844,14 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;background:li
   <button class="sb-close" id="close-sb"><i class="ti ti-x"></i></button>
   <div class="logo">
     <div class="logo-img"><img src="data:image/png;base64,__LOGO_B64__" alt="OMID"></div>
-    <div><div class="logo-name">OMIDIRAN PANEL</div><div class="logo-sub">free for all · v1.0</div></div>
+    <div><div class="logo-name">OMID-IRAN PANEL</div><div class="logo-sub">Free For All · v1.0</div><div class="logo-meta">OMID NETWORK NODE</div></div>
+  </div>
+  <div class="side-telemetry">
+    <div class="telemetry-head"><span>CORE TELEMETRY</span><span class="telemetry-led"></span></div>
+    <div class="telemetry-grid">
+      <div><span>NODE</span><b>OMID-01</b></div>
+      <div><span>ENGINE</span><b>VLESS / XHTTP</b></div>
+    </div>
   </div>
   <div class="nav-wrap">
     <div class="nav-sec">PANEL / پنل</div>
@@ -879,6 +870,7 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;background:li
     <div class="nav-it" data-pg="support"><i class="ti ti-headset"></i> پشتیبانی</div>
   </div>
   <div class="sb-foot">
+    <button class="side-lang" onclick="toggleUiLang()"><i class="ti ti-language"></i><span id="side-lang-label">FA / EN · دو زبانه</span></button>
     <button class="theme-btn" onclick="toggleTheme()"><i class="ti ti-moon" id="theme-icon"></i> <span id="theme-label">تم روشن</span></button>
     
     <button class="logout-btn" id="logout-btn"><i class="ti ti-logout"></i> Logout / خروج</button>
@@ -937,7 +929,7 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;background:li
     </div>
   </div>
   <div class="dash-footer">
-    <span class="df-text">OMIDIRAN PANEL v1.0 · OMID Network · Railway</span>
+    <span class="df-text">OMID-IRAN PANEL v1.0 · OMID Network · Railway</span>
     
     
   </div>
@@ -1333,9 +1325,9 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;background:li
         <div class="srv-tile-icon"><i class="ti ti-speakerphone"></i></div>
         <div class="srv-tile-text"><div class="srv-tile-label">کانال تلگرام</div><div class="srv-tile-val">t.me/X4GHUB</div></div>
       </a>
-      <a class="srv-tile" href="https://github.com/x4gpanell" target="_blank" style="text-decoration:none;cursor:pointer">
+      <a class="srv-tile" href="https://github.com/omidseifi88/omidiran" target="_blank" style="text-decoration:none;cursor:pointer">
         <div class="srv-tile-icon"><i class="ti ti-brand-github"></i></div>
-        <div class="srv-tile-text"><div class="srv-tile-label">گیت‌هاب</div><div class="srv-tile-val">github.com/x4gpanell</div></div>
+        <div class="srv-tile-text"><div class="srv-tile-label">گیت‌هاب</div><div class="srv-tile-val">github.com/omidseifi88/omidiran</div></div>
       </a>
     </div>
   </div>
@@ -1348,7 +1340,7 @@ function applyUiLang(){
   const b=document.body; b.dataset.uiLang=uiLang;
   const btn=document.getElementById('lang-btn'), mb=document.getElementById('lang-mob-btn');
   const label=uiLang==='both'?'FA / EN · دو زبانه':uiLang==='en'?'EN · English':'FA · فارسی';
-  if(btn)btn.textContent=label; if(mb)mb.textContent=uiLang==='both'?'FA / EN':uiLang==='en'?'EN':'FA';
+  if(btn)btn.textContent=label; if(mb)mb.textContent=uiLang==='both'?'FA / EN':uiLang==='en'?'EN':'FA'; const side=document.getElementById('side-lang-label'); if(side) side.textContent=label;
   b.classList.toggle('ui-en',uiLang==='en'); b.classList.toggle('ui-fa',uiLang==='fa');
 }
 let isDark=localStorage.getItem('gateway-theme')!=='light';
@@ -2221,7 +2213,7 @@ body{{background:radial-gradient(circle at 18% 7%,rgba(11,114,137,.15),transpare
   <div class="top">
     <div class="brand">
       <div class="brand-img"><img src="data:image/png;base64,{LOGO_B64}" alt="OMID"></div>
-      <div><div class="brand-name">OMIDIRAN PANEL</div><div class="brand-sub">OMID · v1.0</div></div>
+      <div><div class="brand-name">OMID-IRAN PANEL</div><div class="brand-sub">OMID · v1.0</div></div>
     </div>
     <div class="top-actions">
       <button class="icon-btn" id="pub-lang" onclick="togglePubLang()" title="Language / زبان">FA / EN</button>
@@ -2231,7 +2223,7 @@ body{{background:radial-gradient(circle at 18% 7%,rgba(11,114,137,.15),transpare
   <div id="root">
     <div class="empty-state"><i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i>در حال بارگذاری...</div>
   </div>
-  <div class="footer">OMID Network · OMIDIRAN PANEL v1.0 · free for all</div>
+  <div class="footer">OMID Network · OMID-IRAN PANEL v1.0 · Free For All</div>
 </div>
 <script>
 const UUID_KEY='{uuid_key}';
