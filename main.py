@@ -19,11 +19,11 @@ import httpx
 import logging
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
-logger = logging.getLogger("OMIDIRAN_PANEL")
+logger = logging.getLogger("OMID-IRAN_PANEL")
 
 IRAN_TZ = ZoneInfo("Asia/Tehran")
 
-app = FastAPI(title="OMIDIRAN PANEL", docs_url=None, redoc_url=None)
+app = FastAPI(title="OMID-IRAN PANEL", docs_url=None, redoc_url=None)
 
 # ── Persistence ───────────────────────────────────────────────────────────────
 DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
