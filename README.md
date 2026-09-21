@@ -1,4 +1,4 @@
-# 🚀 OMIDIRAN PANEL
+# 🚀 OMID IRAN PANEL
 
 OMIDIRAN PANEL (OMID) سریع و مدرن برای تونل‌زنی VLESS روی WebSocket و XHTTP + HTTP Proxy، با داشبورد مدیریتی زیبا، **ربات مدیریت تلگرام**، صفحات ساب حرفه‌ای و قابلیت ساخت لینک‌های اختصاصی با محدودیت ترافیک، سرعت و آی‌پی.
 
