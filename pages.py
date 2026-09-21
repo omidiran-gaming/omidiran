@@ -1321,9 +1321,9 @@ body::before{content:"";position:fixed;left:0;right:0;top:82px;height:1px;backgr
       </div>
     </div>
     <div class="srv-tiles">
-      <a class="srv-tile" href="https://t.me/X4GHUB" target="_blank" style="text-decoration:none;cursor:pointer">
+      <a class="srv-tile" href="https://t.me/omid_gamingORG" target="_blank" style="text-decoration:none;cursor:pointer">
         <div class="srv-tile-icon"><i class="ti ti-speakerphone"></i></div>
-        <div class="srv-tile-text"><div class="srv-tile-label">کانال تلگرام</div><div class="srv-tile-val">t.me/X4GHUB</div></div>
+        <div class="srv-tile-text"><div class="srv-tile-label">کانال تلگرام</div><div class="srv-tile-val">t.me/omid_gamingORG</div></div>
       </a>
       <a class="srv-tile" href="https://github.com/omidseifi88/omidiran" target="_blank" style="text-decoration:none;cursor:pointer">
         <div class="srv-tile-icon"><i class="ti ti-brand-github"></i></div>
