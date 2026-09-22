@@ -884,6 +884,19 @@ async def start_bot():
         await stop_bot()
 
     _client = httpx.AsyncClient(timeout=httpx.Timeout(40.0, connect=10.0))
+
+    # ✅ پاک کردن webhook قبل از شروع polling (رفع خطای 409)
+    try:
+        r = await _client.post(f"https://api.telegram.org/bot{token}/deleteWebhook",
+                               params={"drop_pending_updates": "false"})
+        data = r.json()
+        if data.get("ok"):
+            logger.info("Telegram webhook cleared (if any)")
+        else:
+            logger.warning(f"deleteWebhook failed: {data}")
+    except Exception as e:
+        logger.warning(f"deleteWebhook error: {e}")
+
     _running = True
     _poll_task = asyncio.create_task(_poll_loop())
     logger.info(f"🤖 Telegram bot polling started (admins: {len(admins)})")
