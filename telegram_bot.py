@@ -39,11 +39,48 @@ from main import (
     remove_sub_group,
 )
 
-BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
-_admin_ids_raw = os.environ.get("TELEGRAM_ADMIN_IDS", "").strip()
-ADMIN_IDS = {int(x) for x in _admin_ids_raw.replace(" ", "").split(",") if x.isdigit()} if _admin_ids_raw else set()
+# ── Config از main.TELEGRAM خونده می‌شه (نه فقط env) ─────────────
+def _get_token() -> str:
+    """توکن فعلی رو از main.TELEGRAM می‌خونه (که از state ذخیره‌شده پر می‌شه)."""
+    try:
+        from main import TELEGRAM
+        return str(TELEGRAM.get("bot_token") or "").strip()
+    except Exception:
+        return os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()
 
-API_BASE = f"https://api.telegram.org/bot{BOT_TOKEN}"
+def _get_admin_ids() -> set:
+    """آیدی ادمین‌ها رو از main.TELEGRAM می‌خونه."""
+    try:
+        from main import TELEGRAM
+        raw = str(TELEGRAM.get("admin_ids") or "").strip()
+    except Exception:
+        raw = os.environ.get("TELEGRAM_ADMIN_IDS", "").strip()
+    if not raw:
+        return set()
+    return {int(x) for x in raw.replace(" ", "").split(",") if x.isdigit()}
+
+async def validate_token(token: str):
+    """توکن رو با getMe چک می‌کنه. (ok, bot_username) برمی‌گردونه."""
+    if not token:
+        return False, None
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, connect=5.0)) as client:
+            r = await client.get(f"https://api.telegram.org/bot{token}/getMe")
+            data = r.json()
+            if data.get("ok"):
+                return True, data["result"].get("username")
+            return False, None
+    except Exception as e:
+        logger.warning(f"Telegram validate_token failed: {e}")
+        return False, None
+
+def is_running() -> bool:
+    """آیا ربات در حال poll هست؟"""
+    return bool(_running and _poll_task and not _poll_task.done())
+
+def _api_base() -> str:
+    return f"https://api.telegram.org/bot{_get_token()}"
+
 PAGE_SIZE = 6
 
 _client: httpx.AsyncClient | None = None
@@ -113,7 +150,7 @@ async def _call(method: str, **params):
     if _client is None:
         return None
     try:
-        r = await _client.post(f"{API_BASE}/{method}", json=params, timeout=40)
+        r = await _client.post(f"{_api_base()}/{method}", json=params, timeout=40)
         data = r.json()
         if not data.get("ok"):
             logger.warning(f"Telegram API {method} failed: {data}")
@@ -141,7 +178,7 @@ async def _answer_cb(cb_id: str, text: str = ""):
     await _call("answerCallbackQuery", callback_query_id=cb_id, text=text)
 
 def _is_admin(chat_id: int) -> bool:
-    return chat_id in ADMIN_IDS
+    return chat_id in _get_admin_ids()
 
 # ── Keyboards ────────────────────────────────────────────────────────────────
 def _main_menu_kb():
@@ -806,7 +843,7 @@ async def _handle_callback(cb: dict):
 async def _poll_loop():
     global _running
     offset = 0
-    logger.info(f"🤖 Telegram bot polling started (admins: {len(ADMIN_IDS)})")
+    logger.info(f"🤖 Telegram bot polling started (admins: {len(_get_admin_ids())})")
     while _running:
         try:
             res = await _call("getUpdates", offset=offset, timeout=30, allowed_updates=["message", "callback_query"])
@@ -830,21 +867,43 @@ async def _poll_loop():
 
 # ── Lifecycle ────────────────────────────────────────────────────────────────
 async def start_bot():
+    """ربات رو روشن می‌کنه. اگه توکن یا ادمین نداشته باشه، لاگ می‌ندازه و بی‌صدا رد می‌شه."""
     global _client, _poll_task, _running
-    if not BOT_TOKEN:
-        logger.info("Telegram bot: TELEGRAM_BOT_TOKEN تنظیم نشده، ربات غیرفعاله.")
+
+    token = _get_token()
+    admins = _get_admin_ids()
+
+    if not token:
+        logger.info("Telegram bot: توکن تنظیم نشده — ربات غیرفعاله.")
         return
-    if not ADMIN_IDS:
-        logger.warning("Telegram bot: TELEGRAM_ADMIN_IDS تنظیم نشده، هیچ‌کس اجازه‌ی مدیریت نداره (ربات روشنه ولی همه رد می‌شن).")
+    if not admins:
+        logger.warning("Telegram bot: TELEGRAM_ADMIN_IDS خالیه — کسی نمی‌تونه مدیریت کنه، ولی ربات روشنه.")
+
+    # اگه از قبل روشنه، اول خاموش کن
+    if _running and _poll_task and not _poll_task.done():
+        await stop_bot()
+
     _client = httpx.AsyncClient(timeout=httpx.Timeout(40.0, connect=10.0))
     _running = True
     _poll_task = asyncio.create_task(_poll_loop())
+    logger.info(f"🤖 Telegram bot polling started (admins: {len(admins)})")
+
 
 async def stop_bot():
-    global _running, _client
+    """ربات رو متوقف می‌کنه (client رو می‌بنده)."""
+    global _running, _client, _poll_task
+
     _running = False
     if _poll_task:
         _poll_task.cancel()
+        try:
+            await _poll_task
+        except (asyncio.CancelledError, Exception):
+            pass
+        _poll_task = None
     if _client:
-        await _client.aclose()
+        try:
+            await _client.aclose()
+        except Exception:
+            pass
         _client = None

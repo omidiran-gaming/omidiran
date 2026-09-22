@@ -78,8 +78,17 @@ async def load_state():
             data = json.loads(raw)
             LINKS.update(data.get("links", {}))
             SUBS.update(data.get("subs", {}))
+            if "username" in data and str(data["username"]).strip():
+                AUTH["username"] = str(data["username"]).strip()
             if "password_hash" in data:
                 AUTH["password_hash"] = data["password_hash"]
+            if "telegram" in data:
+                tg = data["telegram"]
+                if "bot_token" in tg:
+                    TELEGRAM["bot_token"] = str(tg.get("bot_token") or "").strip()
+                if "admin_ids" in tg:
+                    TELEGRAM["admin_ids"] = str(tg.get("admin_ids") or "").strip()
+                TELEGRAM["enabled"] = bool(TELEGRAM["bot_token"])
             logger.info(f"State loaded: {len(LINKS)} links, {len(SUBS)} subs")
     except Exception as e:
         logger.warning(f"Could not load state: {e}")
@@ -91,7 +100,9 @@ async def save_state():
             data = {
                 "links": dict(LINKS),
                 "subs": dict(SUBS),
+                "username": AUTH["username"],
                 "password_hash": AUTH["password_hash"],
+                "telegram": dict(TELEGRAM),
                 "saved_at": datetime.now().isoformat(),
             }
             tmp = DATA_FILE.with_suffix(".tmp")
@@ -117,6 +128,13 @@ LINKS: dict = {}
 LINKS_LOCK = asyncio.Lock()
 SUBS: dict = {}
 SUBS_LOCK = asyncio.Lock()
+
+# ── Telegram bot config (قابل تنظیم از پنل) ─────────────────────
+TELEGRAM = {
+    "bot_token": os.environ.get("TELEGRAM_BOT_TOKEN", "").strip(),
+    "admin_ids": os.environ.get("TELEGRAM_ADMIN_IDS", "").strip(),
+    "enabled": bool(os.environ.get("TELEGRAM_BOT_TOKEN", "").strip()),
+}
 
 # پروتکل‌های پشتیبانی‌شده برای هر کانفیگ
 PROTOCOLS = ("vless-ws", "xhttp-packet-up", "xhttp-stream-up", "xhttp-stream-one")
@@ -158,8 +176,12 @@ SESSION_TTL = 60 * 60 * 24 * 365
 def hash_password(pw: str) -> str:
     return hashlib.sha256(f"{pw}{CONFIG['secret']}".encode()).hexdigest()
 
-ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "omid").strip() or "omid"
-AUTH = {"password_hash": hash_password(os.environ.get("ADMIN_PASSWORD", "omid"))}
+ADMIN_USERNAME_DEFAULT = os.environ.get("ADMIN_USERNAME", "omid").strip() or "omid"
+ADMIN_PASSWORD_DEFAULT = os.environ.get("ADMIN_PASSWORD", "omid")
+AUTH = {
+    "username": ADMIN_USERNAME_DEFAULT,
+    "password_hash": hash_password(ADMIN_PASSWORD_DEFAULT),
+}
 SESSIONS: dict = {}
 SESSIONS_LOCK = asyncio.Lock()
 
@@ -283,13 +305,50 @@ def generate_vless_link(
         }
     query = "&".join(f"{k}={quote(str(v))}" for k, v in params.items())
     return f"vless://{uuid}@{host}:{port_val}?{query}#{quote(remark)}"
+def build_vless_remark(link: dict) -> str:
+    inbound = "OMID"
+    email = (link.get("label") or "Config").strip()
+
+    used = int(link.get("used_bytes", 0) or 0)
+    total = int(link.get("limit_bytes", 0) or 0)
+
+    traffic_used = fmt_bytes(used)
+
+    if total > 0:
+        traffic_total = fmt_bytes(total)
+        traffic_left = fmt_bytes(max(0, total - used))
+    else:
+        traffic_total = "UNLIMITED"
+        traffic_left = "UNLIMITED"
+
+    expires_at = link.get("expires_at")
+
+    if expires_at:
+        try:
+            exp_dt = datetime.fromisoformat(expires_at)
+            remaining_seconds = (exp_dt - datetime.now()).total_seconds()
+            days_left = max(0, int((remaining_seconds + 86399) // 86400))
+            expire_date = exp_dt.strftime("%Y-%m-%d")
+        except Exception:
+            days_left = "?"
+            expire_date = "N/A"
+    else:
+        days_left = "∞"
+        expire_date = "UNLIMITED"
+
+    return (
+        f"{inbound}-{email} | "
+        f"📊{traffic_used}/{traffic_total} | "
+        f"💾{traffic_left} | "
+        f"⏳{days_left}D | "
+        f"📅{expire_date}"
+    )
 
 def vless_link_for_link(link: dict, uid: str, host: str) -> str:
-    """generate_vless_link رو با تنظیمات دستی همون کانفیگ (fingerprint/alpn/port) صدا می‌زنه."""
     proto = link.get("protocol", DEFAULT_PROTOCOL)
     return generate_vless_link(
-        uid, host,
-        remark=f"OMID-{link.get('label','')}",
+        uid,host,
+        remark=build_vless_remark(link),
         protocol=proto,
         fingerprint=link.get("fingerprint"),
         alpn=link.get("alpn"),
@@ -390,7 +449,7 @@ async def ensure_default_link():
             uid = f"{uid[:8]}-{uid[8:12]}-{uid[12:16]}-{uid[16:20]}-{uid[20:32]}"
             if uid not in LINKS:
                 LINKS[uid] = {
-                    "label": "لینک پیش‌فرض",
+                    "label": "VIP-config",
                     "limit_bytes": 0,
                     "used_bytes": 0,
                     "created_at": datetime.now().isoformat(),
@@ -603,7 +662,7 @@ async def api_login(request: Request):
     ip = client_ip(request)
     username = str(body.get("username", "")).strip()
     password = str(body.get("password", ""))
-    if username != ADMIN_USERNAME or hash_password(password) != AUTH["password_hash"]:
+    if username != AUTH["username"] or hash_password(password) != AUTH["password_hash"]:
         log_activity("auth", f"تلاش ورود ناموفق از {ip}", "err")
         raise HTTPException(status_code=401, detail="نام کاربری یا رمز عبور اشتباه است")
     token = await create_session()
@@ -623,21 +682,81 @@ async def api_logout(request: Request):
 async def api_me(request: Request):
     return {"authenticated": await is_valid_session(request.cookies.get(SESSION_COOKIE))}
 
-@app.post("/api/change-password")
-async def api_change_password(request: Request, token=Depends(require_auth)):
+@app.get("/api/account")
+async def api_account(_=Depends(require_auth)):
+    return {"username": AUTH["username"]}
+
+@app.post("/api/change-credentials")
+async def api_change_credentials(request: Request, token=Depends(require_auth)):
     body = await request.json()
-    if hash_password(str(body.get("current_password", ""))) != AUTH["password_hash"]:
+    current_password = str(body.get("current_password", ""))
+    if hash_password(current_password) != AUTH["password_hash"]:
+        raise HTTPException(status_code=400, detail="رمز فعلی اشتباه است")
+
+    new_username = str(body.get("new_username", "")).strip()
+    new_password = str(body.get("new_password", ""))
+
+    if not new_username and not new_password:
+        raise HTTPException(status_code=400, detail="نام کاربری یا رمز جدید را وارد کنید")
+
+    if new_username:
+        if len(new_username) < 3 or len(new_username) > 32:
+            raise HTTPException(status_code=400, detail="نام کاربری باید بین ۳ تا ۳۲ کاراکتر باشد")
+        if any(ch.isspace() for ch in new_username):
+            raise HTTPException(status_code=400, detail="نام کاربری نباید فاصله داشته باشد")
+
+    if new_password and len(new_password) < 4:
+        raise HTTPException(status_code=400, detail="رمز جدید باید حداقل ۴ کاراکتر باشد")
+
+    changed = []
+    if new_username:
+        if new_username != AUTH["username"]:
+            AUTH["username"] = new_username
+            changed.append("نام کاربری")
+    if new_password:
+        AUTH["password_hash"] = hash_password(new_password)
+        changed.append("رمز عبور")
+
+    if not changed:
+        raise HTTPException(status_code=400, detail="تغییری ایجاد نشد")
+
+    # Invalidate all sessions and issue a fresh one for the current browser.
+    fresh_token = await create_session()
+    async with SESSIONS_LOCK:
+        SESSIONS.clear()
+        SESSIONS[fresh_token] = time.time() + SESSION_TTL
+
+    await save_state()
+    log_activity("auth", f"اطلاعات ورود پنل تغییر کرد: {' و '.join(changed)}", "ok")
+
+    resp = JSONResponse({"ok": True, "username": AUTH["username"]})
+    resp.set_cookie(SESSION_COOKIE, fresh_token, max_age=SESSION_TTL, httponly=True, samesite="lax", path="/")
+    return resp
+
+# Backward-compatible endpoint for older UI builds.
+@app.post("/api/change-password")
+async def api_change_password_legacy(request: Request, token=Depends(require_auth)):
+    body = await request.json()
+    body["new_username"] = ""
+    return await api_change_credentials_from_legacy(body, token)
+
+async def api_change_credentials_from_legacy(body: dict, token: str):
+    current_password = str(body.get("current_password", ""))
+    if hash_password(current_password) != AUTH["password_hash"]:
         raise HTTPException(status_code=400, detail="رمز فعلی اشتباه است")
     new = str(body.get("new_password", ""))
     if len(new) < 4:
         raise HTTPException(status_code=400, detail="رمز جدید باید حداقل ۴ کاراکتر باشد")
     AUTH["password_hash"] = hash_password(new)
+    fresh_token = await create_session()
     async with SESSIONS_LOCK:
         SESSIONS.clear()
-        SESSIONS[token] = time.time() + SESSION_TTL
+        SESSIONS[fresh_token] = time.time() + SESSION_TTL
     await save_state()
     log_activity("auth", "رمز عبور پنل تغییر کرد", "ok")
-    return {"ok": True}
+    resp = JSONResponse({"ok": True, "username": AUTH["username"]})
+    resp.set_cookie(SESSION_COOKIE, fresh_token, max_age=SESSION_TTL, httponly=True, samesite="lax", path="/")
+    return resp
 
 # ── Stats ─────────────────────────────────────────────────────────────────────
 @app.get("/stats")
@@ -1029,7 +1148,87 @@ app.include_router(xhttp_router)
 # ══════════════════════════════════════════════════════════════════════════════
 # ربات مدیریت تلگرام (اختیاری — فقط اگه TELEGRAM_BOT_TOKEN ست شده باشه فعال می‌شه)
 # ══════════════════════════════════════════════════════════════════════════════
-from telegram_bot import start_bot as _tg_start_bot, stop_bot as _tg_stop_bot
+from telegram_bot import (
+    start_bot as _tg_start_bot,
+    stop_bot as _tg_stop_bot,
+    is_running as _tg_is_running,
+    validate_token as _tg_validate_token,
+)
+
+# ── Telegram bot management (from panel) ─────────────────────────
+@app.get("/api/telegram")
+async def get_telegram_config(_=Depends(require_auth)):
+    """وضعیت فعلی ربات + تنظیمات ذخیره‌شده."""
+    token = TELEGRAM.get("bot_token", "")
+    return {
+        "bot_token": token,
+        "admin_ids": TELEGRAM.get("admin_ids", ""),
+        "enabled": bool(token),
+        "running": _tg_is_running(),
+        "has_token": bool(token),
+    }
+
+@app.post("/api/telegram")
+async def save_telegram_config(request: Request, _=Depends(require_auth)):
+    """ذخیره توکن + آیدی ادمین‌ها، سپس ری‌استارت ربات."""
+    body = await request.json()
+    new_token = str(body.get("bot_token") or "").strip()
+    new_admins = str(body.get("admin_ids") or "").strip()
+
+    if new_token:
+        # اعتبارسنجی توکن قبل از ذخیره
+        ok, username = await _tg_validate_token(new_token)
+        if not ok:
+            raise HTTPException(status_code=400, detail="توکن ربات نامعتبره یا به تلگرام وصل نمی‌شه")
+    else:
+        username = None
+
+    TELEGRAM["bot_token"] = new_token
+    TELEGRAM["admin_ids"] = new_admins
+    TELEGRAM["enabled"] = bool(new_token)
+
+    await save_state()
+
+    # ری‌استارت ربات
+    try:
+        await _tg_stop_bot()
+    except Exception:
+        pass
+    if TELEGRAM["enabled"]:
+        await _tg_start_bot()
+
+    log_activity(
+        "system",
+        f"ربات تلگرام {'فعال' if TELEGRAM['enabled'] else 'غیرفعال'} شد"
+        + (f" (@{username})" if username else ""),
+        "ok" if TELEGRAM["enabled"] else "warn",
+    )
+
+    return {
+        "ok": True,
+        "running": _tg_is_running(),
+        "enabled": TELEGRAM["enabled"],
+        "bot_username": username,
+    }
+
+@app.post("/api/telegram/stop")
+async def stop_telegram_bot(_=Depends(require_auth)):
+    """فقط ربات رو متوقف می‌کنه (توکن ذخیره می‌مونه)."""
+    await _tg_stop_bot()
+    log_activity("system", "ربات تلگرام متوقف شد", "warn")
+    return {"ok": True, "running": False}
+
+@app.post("/api/telegram/test")
+async def test_telegram_bot(request: Request, _=Depends(require_auth)):
+    """تست اتصال با توکن فعلی (بدون ذخیره)."""
+    body = await request.json()
+    token = str(body.get("bot_token") or TELEGRAM.get("bot_token", "")).strip()
+    if not token:
+        raise HTTPException(status_code=400, detail="توکن ربات رو وارد کن")
+    ok, username = await _tg_validate_token(token)
+    if not ok:
+        raise HTTPException(status_code=400, detail="توکن نامعتبره")
+    return {"ok": True, "bot_username": username}
 
 # ── HTTP Proxy ────────────────────────────────────────────────────────────────
 _HOP = {"connection","keep-alive","proxy-authenticate","proxy-authorization",
