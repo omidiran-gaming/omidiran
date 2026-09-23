@@ -1,5 +1,6 @@
 # pages.py - OMID-IRAN PANEL v1.2.4
-# شامل: LOGIN_HTML, DASHBOARD_HTML, get_public_page_html()
+# شامل: LOGIN_HTML, DASHBOARD_HTML
+# (get_public_page_html به public_page.py منتقل شد)
 
 # لوگوی OMID (به‌صورت base64 داخلی)
 LOGO_B64 = "/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAMCAggNCgoLCgoKDQoKCAoICAoKCgoKCgoKCAoKCAoKCg0KDQgICwgKCgoKCAoKCggKCgoKCAoODQoIDQoICgoBAwQEBgUGCgYGCg8NCg4PDw8PEA8PDxAQDRANDQ8NDw4QDw0PDw4PEA0PDQ0PDg8PDQ0PDw8NDQ8NDQ8PDw8ND//AABEIAKAAoAMBEQACEQEDEQH/xAAdAAAABwEBAQAAAAAAAAAAAAACAwQFBgcIAQkA/8QAQhAAAgECBAMFBQUGBQIHAAAAAQIDBBEABRIhBhMxBwgiQVEUMmFx8CNCgZGhCRUkM7HBQ1Ji0eEl8TRERXKCkqL/xAAcAQABBQEBAQAAAAAAAAAAAAADAQIEBQYABwj/xABGEQABAwIEAgYGBQsDAwUAAAABAAIRAwQSITFBBVEGEyJhcaEUMoGRscFCYtHh8AcjM1JygpKistLxFRbCY5PiJCVDU4P/2gAMAwEAAhEDEQA/AIl2J9iE1RKiRoWZjsPIAdWY9Aijck9B6mwx6YSygw1KhgBeW1a1StUFGiJcdPtPcNytxZznFDkdJy4tD10iAuxA8PozDqIlP8uPrIRc+ZGfa2pxOpjf2aLdBz+/mdlbPfT4RT6un2rhwzPL7ANhvvzWF+MuM6qtncB2Ys2qWRrkC595ulyeiqLXtYaQCV1NOnMU6YgDyUXhvDKt1V5uObnHbvPyHyVZ8e8eRxoaalO24nmB8UjdGAI6+jMNreFbKMBubkMHVUvaVta1Zluz0a20+k7cnfP4+4Kma6txROcq9jExVU+IxcpbWptmkwEmUcBN9RLhhKekrYalXFH1b5YVKuocJCRHxPh0rktikw6U2EtgkwQFCcE60lXg7XQgOapVw7xFJG6ujFWU3BH9D5FT0IOxGJlKq5jg5pzUdrn0nB7DBCvLLM0SrXmw2SrQDmx3sJQNrj4+SsemyvtocaFpbctxMyeNRzU66tafEmGpTAFUDMfrd/3+wq8+7X3l5qWQAkmNiFmiJsGA22/yyr91rfA3BOKq6tWXbMLsnDQ8vuWCpVa3DqvWU82/Sbz+wjYq+e3jsJpa6nOYZcAwcF54UG9+rMqjcSr/AIkY973luSddbZ3jqLvRbrIjJpPkD3cj+BNvLNr2+nWObTm9o25kDn+sN9Rnr548b8ENGx22xbVqUJLS6FRsgr04zbNqHJKTlx6HrpIwXYj3fRmHURKfcTrIRc+ZFC1tTidTG/s0hoPxudzspD3U+EU+rp9q4cMzy+wDYbrz+7We1aWaR2d2ZmYszMbkk+Z/oPIAWAAAxonFrGhjRACqra2JJqVDLjmSd1S9XxVIurQ7LrUo+k21KfI/Vx+eIRqubMFaW3xU5wEiRBjdQuursQXOUxjITHU1OI5cpbWpvllwAlGAhN9RLhieAkTNhE+EEDHJYQVwmq6EK+FlchqcckhHxPhUhCVwy4eCmEJfDNggKEQnSlq8GDkBzVIsqzhlN1Yg2IupINmFiLixsRcH1BxJZUIMgqMQWmRl4KW8O5+VIIPTEunUhVdagCFr3uy95WWlkG+qJrCaInZh6jyEi/db8DcHBLm1ZeU8LsnDQ8vuVLSq1eH1esp5tPrN5/eNj71fHb52DUtdTnMMuAYOC88SDe/V2VRuJV/xY/ve8tyTrrbO8dRd6LdZEZAnyE8uRU67tGvb6dY5tObmjY7kDn+sPaO/F3a52uyzyyOzlmdizsTuSfqwA2AAAsABi5JbTaGMEAKFb2znONSoZccyTuqMznOb3xAe9aCnShRKursQ3OVgxiY6ioxHJUprU31EuAko4CQzTfX54ZKIAkrnDU4Iph9bY6VyCq4RKu2+vyxy5fEfX154VIuj66fHHLkJGxy5HRSYWUhCWRTYICmEJbBPh4KGWpzpKvBgUBzU/wCX5hiQ1yhuYppw5xEVIIOJtOpCra1DEFsHuy95eWmkAJ1ROQJoydmHTUPISL91vPobg7EurVl5Tg5OGh5fcqWjVq8Pq9YzNp9ZvP7x/lYrzbNiSep2JNt9h1PyHmfLEdziVo6VHkolXZhiG5ynsYmWpqsRyVKa1Nss2BEowCRTy/X54ESigJMSfr8cNSwuMPr8cKlQdHxHX8d/T++ESwuultr36dDcb2+vnhdMl0II/thNF0L4j6NscuQtXn6bdBb8cLKSEEjCLkPXhZXIxJcdKSEpimwQFMIS2CowQFDITpSVmDAoLmKVcORvI4RN2IOkXAvpBawuQLkDYX3OJlFrqjsLdUFlu6q7AwSTspbw7xAyt5gg2INwQQbEEHcEHYg7g4lU3lpgqnr0JkEJk4l4hjiVoIGDMw01U4+/6xRekA6Mesny6srVW0gaVMyfpO59w7vita8st2GhRMk+u7n9Ud3xVeVFTipJUQNSCWb6/LAS5EASKR8DJRQES/8Abf8AXDU6FxytrW8Wq97+Vjtb573wuUd6dCDKgufO52J67df1xx5JYQBHhFyNoowSNifgDY/n0+OHNEroXQRa19r7bedgPL8uuE2hdCAwtb47/nb+v98JolhDhgubD9dug+O3l64UCdEhRcklz0/DCEykhcP9MIkhd3wqSIRl8LKbCUwv9flh4KaQlkE+CAoZCdaKsIsQTcEEEGxBG4II3BB3BG4IwdriDIQnNVkUGZipA3ArANjsq1QUdD0C1IA2OwkA8tuXcteLkcqn9X3/ABUtzBejPKt7hVA8g8efwq+oqMUZKAAkEs2AlyKGpE8uAkooaiXOET4XXb5benn16/HDl0Iu+318f+B6YRKhJ+O/+/5fDrh4SrqRjxXA2F+u/l5b3/PHADNdCCqm4J8rE+h+vljt1yCSLX87Egi3p0N/IYSF0Lp33ta+/lv03/H4Y7VculyN+tvgNuo36/rjjkuhF4akXccuXwH18sdC6EIt8Tcne/6Y5IhLJ9fljgm4Uphkw4FMISyGfBgYQSE7UVaQQQdwbi3UEbg/MHfBmujMJhCZZZsRC5SWtSWSb6/LDEUBEB8InQuSTjoSB6X/ABwq7IJRTUUhK6Vc6m0rpUsSb7AWvcny+ODNpVDmGmPBSm2lZwxBjsPODHvOXmpzknYNnMpKxZdVsCbq7RmNALW3Z9KXO22q9r2GxxIFpVOQaTPkqS64pYWYm4uaLdv0rCf4WFzvJTAdz7OkQyVIpaSPYGSrq4Y1NxbblmW29hYjUSdgb4kDh9bkB4nuVJT6VcMr1BSs3VLh52o0nu83Bo81Ec/7PKCEePNYpJBsy0dNLOgIuP5kz0Qtsvi0Fb36gXLH2jWZuqNjuBJ+OXtWxtqVap27hgoM2xuDqh//ADpY8P77298KGVoguBEXKgXIcrcG5HVQoNtjsW6+8QMRXYJhqNUFOfzcx9aJ8sh4SfEolS8TqSdDi0i6rAjUAQQCbHztcG+A4hTPaMHXNDwFGUxllKpGS7GQssca63Lt1fSuprWO/kLdBjg7Hk0z+NUNzmtEuIA7yB8UozDIKmIHmwToAu7SRSxjY+rhVsDbcbeL4jC6TP2fFBFek71XA+BB+CTZdkE7i8cMzjbSY4ndevqoIt+J+NsOZSe/1Gk+AJVpQ4fc3AmjSe79ljiPeBCkdP2QZkf8DQp6mSSJAPmC5k8vJCcT2cMunfQjxIHznyWgp9D+LvzNAtHN7mt+Jn3Apv4i4PMIPNmh5nlFFrkY/FtQiVF/1Xa9jYMRbAq9oaA/OOGLkM/8Ku4hwf0ARWrMx7MZLj4kwAPxCj8EbMwRAWc7KiAs5NtgFW7E28gMVmITG/Lf3arPOIYMTjA5nIe8qfZJ2BZ3IAVoKhQTYGdRTA2tcj2gwsyi/VQwvsLkEYsKFjc1/wBHTce85R/FCzN10l4VbZVLhk8mnEf5ZVwcC9xDMZrtNVUsABA0oJal/Mm6/wAMgHS1pmvv7tt7D/RLlv6Qtb73fZ8Vib78pHD6OVClUqHvho85Pkpfx/3R8oy6gmq6qeqqZY49EMWpKaKaokGmNdMYaoC6vGwFSSsaufFpvglThrKLC8uLjsMgJ90+aruD9MeJcd4gyztKLKbTm45vLWNzOsCdh2RmRCyLTTnbfy3+JxSgr2ZzYKQST4ApACKJ+tvh9fRwidCNo6dmIVQWYkBQNzdioH6m39emCsaXmBqjUqZe7C3U/iTyA3OwzK3fwb2UZbleXxNmEdMZmUT1UlTGJBG0tgkKjxXK2I02di1wLrpxu7W2oW1HHWMDSeZP4yXgnF+l3FuKcRdY8BrVG0GdlvVEsNUt9aq45GHH1QSA1gaCJklgzrvwUcA00FPrsAFKQx0kNulhqRpth0Hs4B2FxuRCrcWtWfoKZceZ7I/u/lQqfQbifEHdbxS6dJ1l7qjj7zh/mVW8Ud9TP57hJ46dN9oY012t0LyByT5gxpGSbfjUVOJVqpyIYO74SZ8oW14b0A4PbEGozrHc6hy/hbHmSogKnLZCHrq+snmeGFJHcTOYpJX1yuC6yPIlHEDGqlm9qq51IEEETyyQ3VABhc8nvzMcznOg01JPIBapz763aaVlSpspguIALRiAEN7IhoNR2ZMSxrdS4wnbIsw4VEyNNTVkkP2kzxCRlN3JjgpnZpqcmOnjAqJZYw8k9TKFQxwRMkiM6kPBcHEbifcDnoNTqSTGmSratHjlamWUa1Km84QHuGQjNz4DXZuPZa2Oy0SQXGRPT22cMrdYsny8JtoNQlTUN5X1p7NoBvttVPfYlhuMWpqWY7Lg3D4Pdn4YY5bo1n0Puq4/9x6QuZzFKlVI9+FnwXKfvGUqrpiko6bfUTl+TRwb7D/zCV3UAKT71hsV2sRtxaYMJqEHSW04gcocHLbW/QroiHB9/wARvbhw5l4aRyiJ/mSXMO8DSObyVmYPtawkqYoj16xQtT05O53MN7WF7AASfS+HyCcZjxj2iQPJbuysvyfWEGlaFxG72Pf/AFkphj7X8ojJMFKdRN2ZIIkJPqSSrk7nc+vXBG8RsqWdOnB/ZC1rOmXR+yEWVpHhTa0ZeaJqu8RGekc4+SxD9eYTgh45T/VPl9qBW/KSx+TWPaO4NH/JIh2tUL/zTXqCPF7PFS8wm/3ZZppFUWvceylrm4dbb11zxjGMLA4d4wz7JMD3Fed8d6Y8SuG4OGtYwnV9VzifY1oIHjiPsTrw/wBovCMRDfuetqJBuZKyqSQufNnRWFMzHqfsOvQDFQypbzLqTnHfE4GfYMvJeI3fDukN2XE39OnOuCmZ/id2vbMqd0PfmpIdAoskihRL2EdRHTgq/vKUhpmXc2a+onULkHe9izibKTcNKkIPfEe5pWUrfk+ubqXXfEHPJ5tJ08X/ACXOIf2gEkigfutFINwxrWY/Ef8Ahk2P9h6YNS45VpmRTH8R/tQaX5MKTDndO9lMf3Jryvv31UbXShh3FiGqHIPp0jXcf3OHVePVqojq2j94/YpR/JnauEOuX/wt+1G9ovabPmtPDLVKKaGASTaInJQhgFE0hdTdtAIjAW+mRrXLECdSb19Hrrg4QJOWkc81790A/JnZcJs6t86q6XiS52EYabcxt9I5xvlksxVlapdigYJfwa7a9PkWsFXUetgPDe12tqORrVA95c0ZbKBdVGVKrnUwQ2cp1jmY3Ovdom++IuqGAnLLIDqKt4CLfaPcJFsSeZcba/dTV5kWxKpjDIcI7zoPHxVlb0e0WPGE5dp0gM37WX0tBO61D3Sex6Eu2aVYMVHRgtTrOLaZQTrZtQDNoIWRdidTxhSfGuNHZWrcqp02HL/Pw7ivP+nnE69KjT4Lwtrjd3QIDM8dGkcnScs60ZEns0w4nJwKrrvL9vTZhUWjutLDITCp6yMAUEr+hCEqq3sut+pJOIfE7sVi2m31W+Z5/jmg9Hui1DgFEMkPrkfnHjSdcDPqt3P0jnkISnu1d0PN84mC0sfLpVP29dMp5EYBsQg8LTS3BGhDYEHU6WsaFxwjE7IfGNhz+A3M5K9rXgbU6mkMdTKWzGEH6TjnA5CCTsIkj0Vy79j/AMNhVElRmDuFAd+ciBmA3YKqWUE72GwvbEL0xv6nmflA8kE2127M3BHcKbIHhiBPvJPMoGc/spOEYo2lnqa6OJAWkkkq0RFA6lmZAAPxw9lyahwtpyfF32qPWpVqDS+rdlo5llL+xYB4j7ryHOKKjy6eSpoMyrVgoKx4mhaSJWD1DRCQKaiKCE6xWQo1M5IGoMGGJzm4S0kiDnEzoJIka5aHvCHR4o59CpOdRuQgEYi44Gkt+jLpDmkyMJMRC2x3if2XmRwZRXz5alUa2npmqKfmVMkitySJHTQ3gJeNWQar21XBBAYQKNYPdhwxMxmddhmYz09qkVhXtWCs6qXAEYgWtAwzDj2Wz2QcQ8IXlKj33HQi4/HEoK6Vk9gPYDmObVq0dClzs9TOwPJpYibGSUjzO4jjB1ysLCwDuqOMCTkOf41PIb+EkRa9bqgABLz6recb9zRu7bvJAPot2zdwXg7Ksjqa2qhmmnpKMnmvW1UQqKlhojGiKWOJebKyqEQKLGw9cRqVUPf6vZEk5mYAnYgSfACVW3DLllIfnj1jiAIazCC47AtLoaJOZJgEkozu1fs1+HnyWiqc4ppWrJaX2uqf2uphCrJeVVKRSJEOXEVUkKL2JNzc46pUc2oGAS7IHM676EDI5exLSqvq0nXLqjms7RaAG+oMge00mXAYs+cLL/dtyrgyesmOaZVNFl1TmEtJk9causFGpj0lKeou6lZnieORZJHZXZnWytG2LB2Iy6m0ToDq13hsJ1B0M4ZkQax1etRLWV6xPZBeG4Q+nOeIkA4mjR2GC0AOjCcvQ6m/ZxcF2BGWRkEXB507Ag7gglzsfXFYbyrMED+FW7bNrgHCvUIOn5w5pPxB+zX4ReGWOPL1ieSJ0jmR5DJEzKQsiamYalPiFwRthG3jsQxNEeAHnsudYODZpVqmLaXlwnvByI5heN/bZ2OVuWV89BWLaWE3RwLJPCxIjnj6+CQA7XOlgy3Om5sgMgdQdDz+zvG3fqZltcdewktwuBwuafokbTuDILTuCNDIEb4VyEzTJGOhN3t1CAjV8ibhAfJnHxxLtaBrVQzbfwWh4Vw91/dMtxoTLu5o19+ntUm7Wu0FZNNPAf4eEgOV2EsibXFusSHZPJmGoXCxnEvid6K56mn6jf5iPkNvfyK3HS3jzLrDw6yMW9PIkaVHDKe9rduZz5KuNeKQLzaF9FJYg2B+vhY4UGDKO0wZhTvsp4bNVUcuSUKtubUtKGaIQxg8yaY3AAhGkxgnxyFFHXaxtAK9TC8zuZ3A1z7tlbW1eBUrVZqEQerz/PnQNJ2IMQToJJyaVPO2vttaeIUlEGjyulZYowSQ1RIbnmyebSN4pip90MWO7b2V1dksLaXqiBPPuH40WbsOGPtBX4hWcKl3VIFar4+rQpTmGU2gA6FwEnKAqWip3YhUUs7sEjUdWdyFRR8WYhR88Z+Dtr8Sue8MaXu0AJPgMyvayDuwZLlORJUStPSz5flonq6uiqZaWSadIvGZVjKwzu8lolE0T6jyxa6pYNO6c6qKTYLJjPkBBJ9knORustW4Ua9E13YuvLScjMScQaMXqgaHDhMAydV5lz9/bjE/+s1QHkNFJcDyBKwJcgbE2FzvYdMODPD+Fv8AarkcPpAZl/8A3Kn96393C+DpM0y6PM+IaiSukasl/dsVZIDTxR07iLm8gaKaSb2iKQxyyQs8YUaCviLBr1H0wGN1OZyA8NMtsQMSJyUNnC6b67nva7C2A2XOdMtOIySSAcWEtBwmJcDlDn2OZzDmPGGa5izL7HkVOuR5abgRGokLGqdNgNaFXjOkkaGQ+aWWoCyjAzJy5nOHOP8AQPEEc0tG0c+uHFkNDi7QiMP5tjRtu9+n0m907Hq+JKQhlaVCDeNxe/vIrlTa9iY5Eex+7Ip6EYrWseCHAd/n9oV8+j1jSwjIgg+3JeGlD3Pa6o4gr8qphogo61/aKx1+xpqOVjLTyHTs0ksLKKeFfHLYnSipKUvYb60w3XTnnhH7MxOgie4xKLKzKLWHtVAADJ1IyxEjn6x3zjvXsB2A9mWR5TRLS0NgoIeeVlYz1ErXBmmOnWxYqyrYaECaF0hQMVNd1Sq7MQBoOX380ajauYS53aedT4bDkBsPaZJJWcO/XxnFmOZ5Bw9G5MVVVDNM18LW9jpOa4Rgw3DCCocgDV9knky6pdtSLWFzhlOemjc4P7Ti0e9Qb2zr1nDq9mmMyCC4hpflphaXROriIgiVOP2iPeCgouHalKd25tbbK6fSGQoJkdpXBIUjl08b2K7h2jF11AgFCm7GXu128Tl7xmfYpFxanq2UgIZLQd+y3OI+tAae4lF9hXZTktJwlFQ5pFG0f7vfMM1jlRrLJJGayZixHhkhXwhgwKcsAabBQZ3WdaAzT1eYM666gkn2KOeHGox7qw7bnF0ggFsZMgjQtaACZI1mQvHut7TK0s5irK9IS7mCI1tSTHCWJijP2m5RNKE+ZXEwuOcOdG3adptug0uF23Vt62jTL4GIhjYLozIy3Mr02/ZR9vVdLQ1tNV82Smo50FJVuXkdnqeZLLTanvzDDYSk8wmNZ41Ki6Fol0w1A1510nmBz8NJ301BUq0s+oqObRAFI54QIDHZThjKHakbOk54ss/ftYO2GGqzenpIlH/TqW07lAHM1aI6gR6t2KRw8tioYrrlN7sllfRZhYJ7z78vHYz7EUUS2u+oYzDQPZJM7biOWfNZL4eM2kU1MrPV1hVLJuyxN7iDyDygmRm20RsL2Ogi3pvcxnU0/wBI/WNhy9up5Ba+2uTY2rm0zFWoJe45dXTAnM7YhmTqAQNYTBxXlSRStCjo5iJSWVN0eUWDrEephjI5at98h291kC19VrWOwNzjInv3juGnvVXWbTaGspzpmTlJO0bBumeczITNgSjwhlcIiQpLwvRTSkU0B0820lS3kUjIN5LWPJiuGVL+KRr9TGFnUKb6x6mlqcye4c+4TpzV/wAMtK1+9tjbCMUue7k0aknZrQdBqT3qS8RZZTs6QLVU8MEAKapTPIxkJ8byLTxTuzkixstwdVgAQBZXLaZik1wDW+8nc8vNSuM07dz221KsxtKkCAJLnOd9JxAyJPjOvNXv3dOzrhWGoWvlzapqzljwVzww5ZPTwCQTxxQa2mJkk+3ZHEaqhZYpCbqrgVjaTnnDTzcZGo3B28J3VDb2bK2VE43e4Zg7Ed36yu7vc9vcWbZX7Jl1Qi8yuT2w19RBRloKVUnVVWZ2mZJah4mDrGPFRSAkAgORvDqtM5t22DjHtaDyggnRysH8JrhpbhzMbOO+ebQRtvzWL4u7hVnb23J1PlfMojv/APFWH6gfEYX0Ot+qf4Xf2qEeDXP6v8r/AO1bph71NLl2TxwLTSUtRR5Ppo46lhJHUyQwKlPUUNRSrJQV0ElSyzTMlRTsoMrcohWOIzqJxOOwPhAzyz0MDIeEwiOtyzEYybzy0nLxMaZnmFA+692vnK4KHKUoebNUmKvzOpepaHkS5hGlRIWRoZbrR5esDzfaoNcUwspDMZvoL6lE1nOOXOJOfdzcSFIZw2qaPXH2zqSTnz3MexNPYt3262/EFQsSTczMIc1p4Z2aMxUc7jK9AMaspaFRlUAQ2JUSNrcjcdG3Fy5rJMDIe6cgc8yHHxconD7Y3VRzAd8j4yRl+6ffmpbJ38qyGFqyeioYoZmYwwpzTU5lURRrTBgwaILT06xxQ1FdKkoVIFp4VmkDCnJd2dOh2cRJH8ucx5kx3yUe/tWWWTjJ5b+H2nYRlmFHOFe81xCnsyR+yyZhmzRVlU1UkjJA1ewiy6jhSGSJYKOGj5NWFbmv/wBQkY6W165VKwbUpGo/1WgxHdmTnqZy7yFLt+FVH0DWJ2J0OsA78vVPMg5qIU/brVDMMzz+laJpKqtOS5bzkZgKCiiieeZFJAjdgtACGuD7ZUgKGu2BWVk2sS1wMDw2ygazJxH2JeG8OFy9zi0uAMaxpllkQZdO22qlGYdt81RmNJBmeX5dXex5ZJm1caqnqG9jWohWtanhiE9PRmeWAUFKHnp2KVM4U8wIwcdSmx9Q0qOQJjUeAPqk6knIjslJUpUq9x6NRZHtBznCNWk5nPIjJRut7bc3raHMKXMM20tVRQU6GSmCR6Gm59U//T6UymQrDHSiNmjieGsnJ1lEXFnW4UAGik3nOh2jQkDn4GMla1+j1XCG0p0IJ7PdsSO/Q/JVDlnY9l0LCSer9sVSumkpoailEp6kTz1Co0dMLeMU8b1El9KNTXM8cenwqqXdoQO+D5A5+Q+CgU+i9cu7cgez5OPy8VO8w4xrYokqKyvq6SjIHsOXUE0tL7RErfyqCnikjigpALpJmE4a5u2rMZxKCe46igMIAc7Qk5x48z3CO+El5b21mMDjJzGv2ZSJ2iMsRCz7xTntRW1s85VmnrauSflqWkOqokLLEl7uyoGWGMW91VAAFgKCnSdVfhYFk2UzWeYyGZJJyaBmSSYADRqcgAr64m4UTJsuILA53mMZTUDqakgfZwhFwJXGpDJcAkOEbwXk0VWkLSiQ0/nCInv7vD/OwWc4ffDpDcvdbE+gUHABxB/9ZcDNoz/+KiPzkH1iGF47QAymF8vTb6+OMmBGS1RBnNCWPDl0JZDQszBVBZmYKijcszGwA+JP0MKGlxAaJKkU6LqrxTpglxMADUk6BXOtKmX0TgFWqprLI43Ac30xr6pELsf8xDHbUFXXMpjhtuXH9I7L7vZ5r16q2n0X4VUY0h11Uyc4aAnRg5hup55lUv8AW/8Af44yi8KnmrJ7Iu0angWop6tJDTVXKlMkCq88FTSCUQSKjPDHNCVmmhlheVNpRIrq8a3nWlz1Dp/BnUc9sv8AK0HB+JixqS4S3w5wCDGeYGUAwdoJUwXtByIHebMmH+nL6VD+Zr5B+mLo8ZGzB7z/AGhbF3Sy2A7NLzd/aEpftU4dAuIs3kYC4RhQwq5HRWdXndFJ2LLG7KOik4A7jLtmge8/GFFd0tacm0gO+J+LgFXmcdqz1M9N7YpFBBOjfu+k+ziSHUpmWIOxLVM6qEkqp5JKh9i0jBUUU77hz3lzieexOWnIHyHKFjql+64r46xODFMCDppOgdnzgROEDRWJx33hMvcV0lLBWrWVyTx82oal5UIrXHtTRrGHkDPTtNSoNXgSc7iwOJbuIl1IUogCIyiY0k4jprpqFf3XH21LX0dgiBA7MaCJJxnT1shm4CVUXZ72gT0cxmhWJi0EtNLFMrPDJFOArpIqtExFwrrZwVdFYbqMVjKrqZxN127s5lZS1unWr8dOJiB3ZgyI3y8ykfEfF8lRUc+rcuWZFkVNEYWFLKIIFA5UMKRjlQxqnLiFrKbEFzquJ+J/PPfx/E+K512K1cVa5kSCQOUyQJPxMnUmc1d3FPeloXkqqimoqqKrnhqIoHkr4JIab2iFqVTGkVLTS2p4W5cA540aEPiKDFmeITQ6lv8ATrnOfaO+ZyWtq9JKTrX0ZgOmXZaJMzmesd9LMw1MvD3bdlaUtDTyUFW4o4DEwjr4YYpjJPJUzOUNLM6NK0nLJWYNyo4hqugbCW9+LdhbSET9XTKP1ucnTUnJdY9IKdlR6qi06DPA0mQ0CZ6zPOTmNSctkg4Z7eIVlzOarppZZsznWaV4KiKm5cazNVGEc2CuHJaXkuQFRl9khGthqBDQum0n9Y0Z9+YiIGhGYE57yoFhxdtpWdXDCXkmJggNjC0atzAnPMGdJTjH275T5ZbWH/3ZpB8/uUCYsTxmodI932kq/d0yq7UwP3R83FFz94OjVWMGVjm2+yeqrDVQo3k7QCnpkmK9VSR+UWtrSVdSMN3FqzhE5dwA89fd71DrdLrl7S0NAnwHmBPuIPeNVUXEvE880sk9TM0k0rXllla7MQLAX6BVACoigKigBVUADFE5+7isQ976hxOMn8e4LZfdZ7J4KGlfNq4WcQcyNWG8SyAaFAa38TICFtYFTKFve9tjY2wt6AqP9Z2fgNvfqeXsXi/SDjd1x26b0a4PP5x+Go8fTw5kSNKVMAued4k5ABZs7VuP5auplqpTvUlkgUkNGKVT70RazRzLZY1ugJspKsSXWluavWOxg5HIciN3DkT9i+ibDhtrweypWNrlSDS1pIEVW61K+ZltR7tOQwt0AIriudSbrfTayKbalUEhVawC6rb7E7EbnFVUIcZGnwUSuWudLPV2B1A2BjKUGOPDAEANUk4XzjlPrAXXYqjOCdF9m02IAZh4Sx30kgEBmBsrSq2k/FvtOy0HDbr0Sr1rQMegJHqzrHedJ5ZDUrZ/BHdhp6rLYajMI3aocGoRFkliVIJANClUZbuyATktdhr07WtjTtt2XuH0md4gka+HPyXzp07/ACocQrcVda2r2dVS7E4QZf8ASOff2R4d6Flvdf4bVr1EBWMi2uSsqY1U+RJ5qC3kbna46b4JccEs6bMWY8Xu+1YH/eXHq+VB0nk2k0/IqMcW5F2dwMl2SUHUGWnq8xqdrAhtUEzxAg7WaQagxsDpNs84cLaDJJP1S93syMLSWVTppdgkDAOb2U2+ThPkmOlfhdt6Th+Z01EcysqqiNSBcalTnVjkE2sJOTdTe4PhMu3taVXSkWt5uOvgJJ98L2HgP5Pul/EYfe34o0ubaTSfMMHtJjlKY+I48q3DU2U0yk7AaTLb01SvK2r4oqH004nG04fR7T8I8T9/zXt3D+gvC+Gw7iF+ah/6tVgBP7FMD3FxUWlq+HktqMbnqAkLsD+Kqy//ALGGOqcMbsD4An7loXN6IW/r4X/sU3Ee8A/FDh4tyQ+5RRaehklSnRB06hmeoJ391YGcjcKwxFdd2A9WhI54R881Cr9IejND9Dw01Bz6tuf8Rn3pVl3EGStu37riX7pWiralz819io0B+U7b7fHEccStxMUWAfsuPwYB5nxWPu+mNNudnwGkc9XupDwOQP43TpHxpw6i/aT1TsWtbLsppaXSLDf+PkqFO+1733HgFjhrr9hbEQfq0wP65Cydfpb0ordm3sbGgOZbiPkI8valKds/CgAJy7M5iCN5qhIdRFvfWmliiIP3l5fLNyNJG2AvvqboJpvMd7W/0kfBYu8/3neiKt/RY3/p0miPcwfFQ3jjtxy2VlNLklHAsccqrcQyM0swCLPLeA8wRJr5UDs8POdZZBNyo0EOpVpvM06Yaee8nc5Z905TnsmcP6O31IE3V/Uqvc4EnMQ0SS0drLGYxOGcCBElRlO1VdQNNl9DGyurp9jzmVIYxFTruFZ3iYtVSyya3qqkq02uKOKBUpOe/s0mDnEE8vfnJkySTJ5K4o8BqVgaZr1XkjMAkaulxhuk+qNAxkgZkuUuyLu7cQ1zRsKLkokawK8w9mjVUBcvaQtUTNLI7yyy6ZneWVzcABUlU7CuRpHkPnmdycz7gqW96R8J4I1zKtyC8kuLWu6x8nKIZ2WwBABc2ANJ1tbJ+4rTQgPmmZwpbSWSN1hTyuGknGtlYkKNMcLb7EEraxp8LpTNZ58GwPMyfcAsBU6dX3EXmlwaxqVDnDi1zz44WCBzzJU0yio4RoL8memDohZpIonqZgpO95mLsFLWAXmgdLCwFrak+xtf0bBI3Jl3vdn+MlXVOjXTTjILrim5lMZkVKjKLQNJwFwP8pVJd5nvMRVUcVLQmUUqlnmdhymllDCxsC14wuy+MXDNqW+nTTcS4oK2VPffPL/P4mV6f0N6J/7cZVrVnsqXVUYcVMuiiwQS1pIbLqhyeQIwtgOIc4LOb1LHV/qtqA2B09Py/vjO4ifat+XuM98T7NF1FxwCaGpZBBggCO1spcEsQdKmzBtLC6tY30sNroejC4uCdxhzmo1WjII0nlrny7+SsLifvN5/MCr5hMiE7JTiOlCi9wqtTrFLoA8IBkJK7Etc3c+4ru1qGOQy+AB81hrboZwa1OJls0u5vl5J59okZ+CqzMZ3dtcjNI3QtIzO1h/qbU1tz5+eITm4jLszzOZ95zWqpUadJuCk0NHJoAHuEJNDKwNwSCOhBsR8Qeu2HNMZhGaSwyDmu1lY7CzszC+oByXsd+mq5HyBthXPc8Q4yO/P4palSpUEVHF37RJ+MoiOIC5HT4Dqd/hYfLCDJCawN0Rrn4mw26/PoPTy/HDkRDvtbxdAbAm19tz1F7bfhh05QnbQghj167g3AHqPhbDZMpM9UPWNW5LDqTvv0P3r7X8/98OJk6ynHM6yvm8r73Fvx2FhsRYbgYWea7xS7K6unRlZ4TLY/wAtpTHHfy1aEMjC/kJE9N+ocC1hxYZ7icvIZp7XMp54cR2k9kHmQBLvDEBzlT7Ke8fXwhRRw0NIV+/TUimUg3JGupNVIASQTpYG6ixAFsSTxG40aWtHJrY+0eOSpb+yHEOzeve+n/8AUHGnSHhTodWD+9i70z8Q9vedzG8uYVRuLaVlaOP/AOiaEB+Nr9N9hgDrqs7V5UW04Jw60EW9rSb39W0n+JwLvNQWWcn3izAm5BYtv1vvff1PniO5xdk7Md6vnVnvGFziRykx7tEZJVsQFJuqsWFwLgsACb219ABYtaw2AwpcSMJ0XGo5zQwnIGRkNT36+aKUf9sNAQoRsceCAIgCVww4IAjNbKcqOkJ6Ak7mwBJsBcnbyABJPkAcHYydFYUqJcYaJS6ppcPc1SKlNNc8GI7gq97Ujkj+vywAhRy1JXjwyEOEUVwiRFufr8xhEwoccJJsB6n06bn08sKBOicBOQQdf1+WOlJK6j7WsPL9CDv5HHSlxIsD+n9bfphuiZojnuRf42/G3y6YeTOaJqJQSCflew+P6fjhJTEEH/j6tjgkC++vrbCJF8Fxy5DVMKnwjEjw8BKAlkMODAKQ1sp2ynKndlVFLMxsqjz/ALADqSbADckC+JVOkXkNAzVpbWz6zwymJcdArgoMtio497PUyL+AHoPMRA9Ts0jDyA8GlpsZZt5vP493xXp9GhR4LRzh1w4e77vimCjoYVdhMl1YaNW90v8AeH+9rjyvuDBFNrXEVBkfLvWdZQpU6hbXb2TlP6veozxVw4Y303DAqHRh95GvY/PY/DzGxGK+4odW6PcqK+svRqmCZESDzBUZmgxALVRuYkbx4EQgOak0iYEQgEJPIv1+eGphCC745NQSf+cIkXdeOXLi/X6dcIkXdf19DHJZXztjkiCpxyRDDYVLquoMKEQBKI48PATwErhiwYNR2sTjS02Dtap1OmprwRnTQszKisWTTv1BG4seum/vLtqsNxYYt7SqaJJAlazhF46ye57WgkiM9vb8RupBlOVySuWcksxuxP1sB0AGwHpiwo0XVnSdVc21tUu6pe/MnUq5u8N3eqqhqGhnX1eGVQeXPHewdL3sRsHQktG2xuCjsdj6N9R6+j7Ru08j8jv5Kxa624tb+lWv7zd2HkfkdCO+QM95xlR877Cwv5C5Nh6C5Jt8cUtWmZzWPuaDgYOyjFXR4r3NVHUpQmueDEchQHtSGWPACFFcElkiwMoMIiRMIhlAJwiagjDUiDjkiFqx0rly2OXLtsKuCMVMKiAJRHHggRGhK4osFAUkNlL6WmxIaFMpsT5QUV8TGMVpSpSpnw7w6WI2xcW9uXlamxsTUcBC3L3V+65AYv3lmmmPLoV5qLJ4RUBPvvff2QHYAb1DbAFP5ncQ4ibYizs867spH0Z2H1v6fHSRxfi5siOHcOGK6dkSM+rnYfX/AKfHSfdjva9Q51SDK82I9qt/A1ewd3AspBOwq1GzKfDUpcEX1Awru1qcPqenWP6P6bNh/wCJ2OrT7Cq6/sa3B63+q8KzpH9JT1DQdQRuw7HVhjPQrI/b92A1VFUPDOm+7QyKDy5o72Ekd/wDoTqjbY38LNbtdSvqXX0NNxu08j8jutG02/Fbf0q1/ebuw8j8joR7QM+ZvlVr7YpalKFj7i2LTCbeJ+FniazbhhqRh7rA2O3xF9x5fEEExq9uaZz9igXtg+3IDtCJB2Ki9RT4gFqonsSF48AIUYhJJEwMhAIRDjDUJyLJwxMXCfr8scuX18cuQ1w4JUagw5PARyJhQEUCUqihwUBSGtThS036np5m+354ktbKm06ZOSuHhfgqKCPn1QBciyREBrX6Cx2Mp877IL7+8cae3tW0G9bW12H43+C9O4fwqlYUfSr0S4+q05+W5Pki6WhaaTVpVR0VFACqPIbAXPqxFyfQWAeym6u+YjwQadF17Wx4QOQAgALandX7rULR/vHM9MeXQqZQJPCKgJuWa9rUgIsfOY+FbrfULiPEDaxaWnaruyy+hO37Xw8dGcY4sbCOH8PGK6dkSM+rnYfXP8vjpEu9j3rnrX5MF46CE2giA0mQpsssoGwsP5UXSNdyNV9JLGxZw1hc44qztTynYfM7+Gp+F8MpcEpGo8h1y4dp2uGdWtP9Tt9BlrmbIuOW5pcAJqkMiql1CG+oaLbjSbWIsQRcWw+2vCD3HbbPZJw/iRa7PQ6jaDtHJehHZH2t0Od0gyvNSBVgfwNXsHdwLAgmwFUBs6e5UJfbVqAqrq1qcOqenWOdM+uzkD/x5HVp9hVNfWNbgtb/AFThedE/pKeoaDqDzYdjq076E5B7fewKqoah4J03F2ikUHlzR3sJIz6eTKfEjbHyJuA6le0evoabjdp5H5HdaQG34rbel2mn0m7sPI/I6EabgVHSVK6TBOLxE+FvvRH/ADL18P8ATfYgsDBBEdXU9X4KoY9ob6PcCWbHdp5hQzizhV4msd1Iujjo6+o+O4uL7XG5BBNVcW5pmDpseazN/YOtn4TmDoRoQorPBivc1UD2JBNFiOVEc1I5EwwqO4JO+GFBRV8NTZQhhU4FHxJhwTmiUoRcPCMAlcMWHtzUprUvpqbEprVNYxTbgKtjjlDvHqAB0/5kbyZQbKT5b7gG4O1jbWbm034nCfktVwetTtq4qVWYuXceY2UqXmzyan6dEUdEHoPj/mPVj6AKBata+4fJ/wALRfnuIVsb/YNgPxqtod1XusRPGcwzK0WXQqZftDoFQI9yWJtakW3iPWU+FfDqJFxHiHokWlqMVd2WX0J/5fDx0FxjjH+nRw+wGK6dkSM+rnYfXP8AL46RfvZ97FqxuRT3jy+EgQRAaDKU2WWVRaygfyorWjG5GuwR1jYs4cwvecVZ2p1wzsPmd9stV4ZwunwWmatU4rlw7TtcE6taef6zt9Blrk6gkM06Ib2ZiXt5KoLH5XAsD6kYRhNeqGndJbTf3bKTiYJz8BmVB8uzLFJTqQsdQrQVY3B/F7IykMQQQQQSCCDcEEWIIO4INwRtbGhtLvDkdPittw7iODI5g5EHMEHUEbgr0O7J+1ahzyjGWZqwFYo/gavYPI4GxB2AqQBaSPZahLkDUCFqrq1qcNqem2WdI+uzl/48jq0+wqlvrKrwSt/qfDM6B/SU9Q0HY/VOx1afYTkDt57BKqiqHgqEsRdopFB5c0d7CSMnyPRlPiRtm8ibgGle0uvoabjdp5H5c1o5t+KW/pVrp9IbsPI/I6EZjcKic6p3sqteyatAPlqtcD4bA28sU9ZrownZZW6Y+Ax2gmO6VEqylxWuas9VpponixFc1Vz2JvljwAiVDe1I5EwMqM4QkxGGIRRkMeFhPAlLETDwjgJVDHggEqS1qX09PiQ1qmU2J8oKHE1jFaUqUqZ8O8OMxFhi4t7cvOQWnsLF1UiAtvd1XurRyIcwzK0WXQgy/aHQKgR7kkm2mlW3ibrIfCu2o4JxDiHocWtqMVd2WWeCf+Xw8dJ/F+L/AOmxYWAxXTsss+rnb9s/y6nPSP8Aey72DVZ9nprxZfCQIYgNBmMeyySKLWRbfYw2AjFmYa7CN1jYs4cwvqHFXdqdcM7D5nfQZau4XwunwamatUh1071na4J1aDzP0nb6DLXGmfZ6WJ3xDr1y4yVUXd2XkkpjpOJnj1lNndOXr81Um7afRmsBq6qL23IIgtuXU5w6kRPJVtHiL7bGaWTnDDO4B1jvPNf/2Q=="
@@ -11,6 +12,28 @@ LANG_CENTER_JS = r"""/* ══════════════════�
    Keep the same keys in both objects. Changes are applied to Login + Panel.
    ═══════════════════════════════════════════════════════════════════════ */
 const LANG_FA = {
+  "تست اتصال": "تست اتصال",
+  "ذخیره و روشن کردن": "ذخیره و روشن کردن",
+  "توقف ربات": "توقف ربات",
+  "با کاما جدا کن: 123,456": "با کاما جدا کن: 123,456",
+  "برای دریافت Admin ID، توی ربات": "برای دریافت Admin ID، توی ربات",
+  "رو استارت کن. اگه خالی بذاری، هیچ‌کس نمی‌تونه از ربات استفاده کنه.": "رو استارت کن. اگه خالی بذاری، هیچ‌کس نمی‌تونه از ربات استفاده کنه.",
+  "(از @BotFather)": "(از @BotFather)",
+  "در حال بررسی...": "در حال بررسی...",
+  "روشن و در حال کار": "روشن و در حال کار",
+  "متوقف (توکن ذخیره‌شده)": "متوقف (توکن ذخیره‌شده)",
+  "توکن رو وارد کن": "توکن رو وارد کن",
+  "در حال تست...": "در حال تست...",
+  "توکن معتبره": "توکن معتبره",
+  "توکن نامعتبره": "توکن نامعتبره",
+  "توکن الزامیه": "توکن الزامیه",
+  "حداقل یه Admin ID وارد کن": "حداقل یه Admin ID وارد کن",
+  "در حال ذخیره و روشن کردن ربات...": "در حال ذخیره و روشن کردن ربات...",
+  "ربات روشن شد": "ربات روشن شد",
+  "ربات متوقف شد": "ربات متوقف شد",
+  "در حال توقف...": "در حال توقف...",
+  "مطمئنی ربات رو متوقف کنم؟ (توکن ذخیره می‌مونه)": "مطمئنی ربات رو متوقف کنم؟ (توکن ذخیره می‌مونه)",
+  "خطا در توقف": "خطا در توقف",
   "حذف": "حذف",
   "UUID تصادفی · سهمیه، انقضا و پروتکل رو انتخاب کن": "UUID تصادفی · سهمیه، انقضا و پروتکل رو انتخاب کن",
   "UUID کاملاً رندوم تولید می‌شود": "UUID کاملاً رندوم تولید می‌شود",
@@ -335,6 +358,28 @@ const LANG_FA = {
   "فقط UUID‌ های ثبت‌ شده و فعال اتصال برقرار می‌کنند (این فقط تست VLESS/WS است؛ تست XHTTP از خود کلاینت انجام می‌شود).": "فقط UUID‌ های ثبت‌ شده و فعال اتصال برقرار می‌کنند (این فقط تست VLESS/WS است؛ تست XHTTP از خود کلاینت انجام می‌شود).",
 };
 const LANG_EN = {
+  "تست اتصال": "Test Connection",
+  "ذخیره و روشن کردن": "Save & Start",
+  "توقف ربات": "Stop Bot",
+  "با کاما جدا کن: 123,456": "comma separated: 123,456",
+  "برای دریافت Admin ID، توی ربات": "To get your Admin ID, start",
+  "رو استارت کن. اگه خالی بذاری، هیچ‌کس نمی‌تونه از ربات استفاده کنه.": "on Telegram. If left empty, nobody can use the bot.",
+  "(از @BotFather)": "(via @BotFather)",
+  "در حال بررسی...": "Checking...",
+  "روشن و در حال کار": "Online & Running",
+  "متوقف (توکن ذخیره‌شده)": "Stopped (token saved)",
+  "توکن رو وارد کن": "Enter the token",
+  "در حال تست...": "Testing...",
+  "توکن معتبره": "Token is valid",
+  "توکن نامعتبره": "Invalid token",
+  "توکن الزامیه": "Token is required",
+  "حداقل یه Admin ID وارد کن": "Enter at least one Admin ID",
+  "در حال ذخیره و روشن کردن ربات...": "Saving and starting bot...",
+  "ربات روشن شد": "Bot started",
+  "ربات متوقف شد": "Bot stopped",
+  "در حال توقف...": "Stopping...",
+  "مطمئنی ربات رو متوقف کنم؟ (توکن ذخیره می‌مونه)": "Stop the bot? (token will be saved)",
+  "خطا در توقف": "Failed to stop",
   "حذف": "Delete",
   "تصادفی": "Random",
   "UUID کاملاً رندوم تولید می‌شود": "UUID is generated randomly",
@@ -2037,6 +2082,51 @@ body.ui-fa .nav-it.on{
 .tg-result.err{background:var(--red-bg);color:var(--red-t);border:1px solid rgba(239,68,68,.25)}
 .tg-result.wait{background:var(--accent-d);color:var(--accent2);border:1px solid rgba(59,130,246,.25)}
 @keyframes spin{to{transform:rotate(360deg)}}
+/* ═══════════════════════════════════════════════════════════════════════
+   FIX: <select> turns white after selecting an option (dark theme)
+   Cause: Chrome native rendering ignores CSS vars on <select>
+   ═══════════════════════════════════════════════════════════════════════ */
+select.cp-input-full,
+select.fs,
+select.fi{
+  -webkit-appearance:none !important;
+  -moz-appearance:none !important;
+  appearance:none !important;
+  background-color:rgba(0,0,0,.32) !important;
+  color:#E8F4FF !important;
+  background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='%237BAED4' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+  background-repeat:no-repeat !important;
+  background-position:left 12px center !important;
+  padding-left:36px !important;
+  padding-right:13px !important;
+}
+body[dir="ltr"] select.cp-input-full,
+body[dir="ltr"] select.fs,
+body[dir="ltr"] select.fi{
+  background-position:right 12px center !important;
+  padding-right:36px !important;
+  padding-left:13px !important;
+}
+[data-theme="light"] select.cp-input-full,
+[data-theme="light"] select.fs,
+[data-theme="light"] select.fi{
+  background-color:rgba(255,255,255,.88) !important;
+  color:#0F172A !important;
+  background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='13' height='13' viewBox='0 0 24 24' fill='none' stroke='%23087EA4' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") !important;
+}
+/* Options داخل dropdown */
+select.cp-input-full option,
+select.fs option,
+select.fi option{
+  background-color:#0a1628 !important;
+  color:#E8F4FF !important;
+}
+[data-theme="light"] select.cp-input-full option,
+[data-theme="light"] select.fs option,
+[data-theme="light"] select.fi option{
+  background-color:#ffffff !important;
+  color:#0F172A !important;
+}
 </style>
 </head>
 <body>
@@ -2107,6 +2197,7 @@ body.ui-fa .nav-it.on{
     <div class="modal-title"><i class="ti ti-edit"></i> Edit Configuration / ویرایش کانفیگ</div>
     <input type="hidden" id="el-uuid">
     <div class="fg" style="margin-bottom:13px"><label>عنوان</label><input class="fi" id="el-label" style="width:100%"></div>
+    <div class="fg" style="margin-bottom:13px"><label>Sub Token (اختیاری)</label><input class="fi" id="el-token" placeholder="مثلاً: OMIDIRAN" maxlength="32" pattern="[A-Za-z0-9_-]{3,32}" style="width:100%"></div>
     <div class="form-row" style="margin-bottom:13px">
       <div class="fg" style="flex:1"><label>سهمیه (0 = نامحدود)</label><input class="fi" id="el-val" type="number" min="0" step="0.1" style="width:100%"></div>
       <div class="fg"><label>واحد</label><select class="fs" id="el-unit"><option value="GB">GB</option><option value="MB">MB</option></select></div>
@@ -2272,6 +2363,15 @@ body.ui-fa .nav-it.on{
           <input class="cp-input-full" id="nl-label" placeholder="مثلاً: کاربر علی">
           <div class="cp-mini-row">
             <input class="cp-input-full" id="nl-note" placeholder="یادداشت (اختیاری)">
+          </div>
+          <div class="cp-mini-row">
+            <input class="cp-input-full" id="nl-token" placeholder="Sub Token (اختیاری) — مثلاً: OMIDIRAN" maxlength="32" pattern="[A-Za-z0-9_-]{3,32}">
+          </div>
+          <div class="chip-row">
+            <span class="chip" onclick="document.getElementById('nl-token').value='OMIDIRAN'">OMIDIRAN</span>
+            <span class="chip" onclick="document.getElementById('nl-token').value='VIP'">VIP</span>
+            <span class="chip" onclick="document.getElementById('nl-token').value='FREE'">FREE</span>
+            <span class="chip" onclick="document.getElementById('nl-token').value=''">پاک کردن</span>
           </div>
         </div>
         <div class="cp-block">
@@ -2585,7 +2685,7 @@ body.ui-fa .nav-it.on{
       <div class="srv-tiles">
         <div class="srv-tile"><div class="srv-tile-icon"><i class="ti ti-route"></i></div><div class="srv-tile-text"><div class="srv-tile-label">پورت پیش‌فرض</div><div class="srv-tile-val">443 (TLS) · قابل تغییر در هر کانفیگ</div></div></div>
         <div class="srv-tile"><div class="srv-tile-icon"><i class="ti ti-versions"></i></div><div class="srv-tile-text"><div class="srv-tile-label">نسخه</div><div class="srv-tile-val">v1.0</div></div></div>
-        <div class="srv-tile"><div class="srv-tile-icon"><i class="ti ti-brand-fastapi"></i></div><div class="srv-tile-text"><div class="srv-tile-label">فریم‌ورک</div><div class="srv-tile-val">FastAPI + Uvicorn</div></div></div>
+        <div class="srv-tile"><div class="srv-tile-icon"><i class="ti ti-bolt"></i></div><div class="srv-tile-text"><div class="srv-tile-label">فریم‌ورک</div><div class="srv-tile-val">FastAPI + Uvicorn</div></div></div>
         <div class="srv-tile"><div class="srv-tile-icon"><i class="ti ti-cloud"></i></div><div class="srv-tile-text"><div class="srv-tile-label">پلتفرم</div><div class="srv-tile-val">Railway</div></div></div>
         <div class="srv-tile" style="grid-column:1/-1"><div class="srv-tile-icon"><i class="ti ti-device-floppy"></i></div><div class="srv-tile-text"><div class="srv-tile-label">ذخیره سازی</div><div class="srv-tile-val">JSON File (/data)</div></div></div>
       </div>
@@ -2935,7 +3035,19 @@ async function loadLinks(){
     const {subs=[]}=await sr.json();
     allSubsList=subs;allLinksList=links;
     const nlSub=document.getElementById('nl-sub');
-    nlSub.innerHTML='<option value="">— بدون گروه —</option>'+subs.map(s=>`<option value="${esc(s.sub_id)}">${esc(s.name)}</option>`).join('');
+    // ✅ فقط وقتی dropdown رو rebuild کن که محتواش عوض شده باشه
+    // وگرنه انتخاب فعلی کاربر هر ۵ ثانیه پریده می‌شه
+    const oldVal = nlSub.value;
+    const newOptionsHtml = '<option value="">— بدون گروه —</option>' +
+      subs.map(s=>`<option value="${esc(s.sub_id)}">${esc(s.name)}</option>`).join('');
+    if(nlSub.dataset.optionsHtml !== newOptionsHtml){
+      nlSub.dataset.optionsHtml = newOptionsHtml;
+      nlSub.innerHTML = newOptionsHtml;
+      // اگه انتخاب قبلی هنوز معتبر بود، حفظش کن
+      if(oldVal && Array.from(nlSub.options).some(o=>o.value===oldVal)){
+        nlSub.value = oldVal;
+      }
+    }
     document.getElementById('links-pg-cnt').textContent=toFa(links.length)+' کانفیگ';
     document.getElementById('lsummary-badge').textContent=toFa(links.length);
     const grid=document.getElementById('links-grid'),empty=document.getElementById('links-empty');
@@ -2955,6 +3067,7 @@ async function loadLinks(){
         <div class="cfg-label">${esc(l.label)}</div>
         <div class="cfg-sub-meta">
           <span class="cfg-uuid-mini" onclick="navigator.clipboard.writeText('${l.uuid}').then(()=>toast('UUID کپی شد','ok'))" title="${l.uuid}"><i class="ti ti-fingerprint"></i> ${l.uuid.slice(0,10)}…</span>
+          ${l.sub_token?`<span class="cfg-uuid-mini" style="background:var(--green-bg);color:var(--green-t)" onclick="navigator.clipboard.writeText('${esc(l.sub_token)}').then(()=>toast('Sub Token کپی شد','ok'))" title="Sub Token: ${esc(l.sub_token)}"><i class="ti ti-tag"></i> ${esc(l.sub_token)}</span>`:''}
           <span>${new Date(l.created_at).toLocaleDateString('fa-IR')}</span>
         </div>
       </div>
@@ -2978,7 +3091,7 @@ async function loadLinks(){
       <div class="cfg-actions">
         <button class="tog${allowed?' on':''}" onclick="toggleActive('${l.uuid}',${!l.active})" title="فعال/غیرفعال"></button>
         <button class="btn btn-sm btn-g btn-icon" onclick="navigator.clipboard.writeText('${esc(l.vless_link)}').then(()=>toast('لینک کپی شد','ok'))" title="کپی لینک"><i class="ti ti-copy"></i></button>
-        <button class="btn btn-sm btn-g btn-icon" onclick="navigator.clipboard.writeText('${esc(l.sub_url)}').then(()=>toast('Sub کپی شد','ok'))" title="Sub URL"><i class="ti ti-rss"></i></button>
+        <button class="btn btn-sm btn-g btn-icon" onclick="window.open('${esc(l.sub_url)}','_blank','noopener')" title="باز کردن Sub URL"><i class="ti ti-rss"></i></button>
         <button class="btn btn-sm btn-g btn-icon" onclick="showQR('${esc(l.vless_link)}')" title="QR"><i class="ti ti-qrcode"></i></button>
         <button class="btn btn-sm btn-amber btn-icon" onclick="openEditLink('${l.uuid}')" title="ویرایش"><i class="ti ti-edit"></i></button>
         <button class="btn btn-sm btn-g btn-icon" onclick="resetUsage('${l.uuid}')" title="ریست مصرف"><i class="ti ti-rotate"></i></button>
@@ -3004,10 +3117,11 @@ async function createLink(){
   const ip_limit=Number(document.getElementById('nl-iplimit').value)||0;
   const speed_limit_value=Number(document.getElementById('nl-speed').value)||0;
   const speed_limit_unit=document.getElementById('nl-speed-unit').value;
+  const sub_token=document.getElementById('nl-token').value.trim();
   try{
-    const r=await authF('/api/links',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({label,limit_value:val||0,limit_unit:unit,expires_days:exp||0,note,sub_id,protocol,fingerprint,alpn,port,ip_limit,speed_limit_value,speed_limit_unit})});
+    const r=await authF('/api/links',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({label,limit_value:val||0,limit_unit:unit,expires_days:exp||0,note,sub_id,protocol,fingerprint,alpn,port,ip_limit,speed_limit_value,speed_limit_unit,sub_token})});
     if(!r.ok)throw new Error('failed');
-    ['nl-label','nl-val','nl-exp','nl-note','nl-alpn'].forEach(id=>document.getElementById(id).value='');
+    ['nl-label','nl-val','nl-exp','nl-note','nl-alpn','nl-token'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('nl-port').value='443';
     document.getElementById('nl-iplimit').value='0';
     document.getElementById('nl-speed').value='0';
@@ -3022,6 +3136,7 @@ function openEditLink(uuid){
   document.getElementById('el-uuid').value=uuid;
   document.getElementById('el-label').value=l.label;
   document.getElementById('el-note').value=l.note||'';
+  document.getElementById('el-token').value=l.sub_token||'';
   if(l.limit_bytes===0){document.getElementById('el-val').value='';document.getElementById('el-unit').value='GB';}
   else{document.getElementById('el-val').value=(l.limit_bytes/1024/1024).toFixed(0);document.getElementById('el-unit').value='MB';}
   document.getElementById('el-exp').value='';
@@ -3046,7 +3161,8 @@ async function saveEditLink(){
   const ip_limit=Number(document.getElementById('el-iplimit').value)||0;
   const speed_limit_value=Number(document.getElementById('el-speed').value)||0;
   const speed_limit_unit=document.getElementById('el-speed-unit').value;
-  const body={label,note,limit_value:val||0,limit_unit:unit,fingerprint,alpn,port,ip_limit,speed_limit_value,speed_limit_unit};
+  const sub_token=document.getElementById('el-token').value.trim();
+  const body={label,note,limit_value:val||0,limit_unit:unit,fingerprint,alpn,port,ip_limit,speed_limit_value,speed_limit_unit,sub_token};
   if(exp&&Number(exp)>0)body.expires_days=Number(exp);
   try{
     const r=await authF('/api/links/'+uuid,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
@@ -3544,471 +3660,3 @@ document.addEventListener('DOMContentLoaded',async()=>{
 # جایگزینی نهایی لوگو در صفحات استاتیک (LOGIN_HTML / DASHBOARD_HTML)
 LOGIN_HTML = LOGIN_HTML.replace("__LOGO_B64__", LOGO_B64).replace("__LANG_CENTER__", LANG_CENTER_JS)
 DASHBOARD_HTML = DASHBOARD_HTML.replace("__LOGO_B64__", LOGO_B64).replace("__LANG_CENTER__", LANG_CENTER_JS)
-
-def get_public_page_html(uuid_key: str) -> str:
-    """صفحه پابلیک ساب v3 — طراحی حرفه‌ای‌تر: لینک کانفیگ پنهان با دکمه نمایش، صفحه‌ی رمز با طراحی ویژه"""
-    return f"""<!DOCTYPE html>
-<html lang="fa" dir="rtl">
-<head>
-<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>OMID Network · Subscription</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
-<style>
-*{{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}}
-:root{{
-  --bg:#060a14;--bg2:#0a1020;--bg3:#0d1428;
-  --card:#0c1326;--card-b:rgba(96,148,246,0.12);--card-bh:rgba(96,148,246,0.28);
-  --accent:#3B7CF6;--accent2:#6EA3FF;--accent-d:rgba(59,124,246,0.1);
-  --green:#1FB87E;--green-bg:rgba(31,184,126,0.1);--green-t:#3FD79C;
-  --red:#EF4444;--red-bg:rgba(239,68,68,0.1);--red-t:#FB8585;
-  --amber:#F2A33D;--amber-bg:rgba(242,163,61,0.1);--amber-t:#F9C988;
-  --purple:#9D7BF0;--purple-bg:rgba(157,123,240,0.1);--purple-t:#BCA4F7;
-  --t1:#EFF4FF;--t2:#8AA0C4;--t3:#48577A;
-  --radius:18px;--shadow:0 12px 40px rgba(0,0,0,0.45);
-  --serif:'Vazirmatn',sans-serif;
-}}
-[data-theme="light"]{{
-  --bg:#F0F3FA;--bg2:#E5ECF8;--bg3:#D9E3F4;
-  --card:#FFFFFF;--card-b:rgba(59,124,246,0.14);--card-bh:rgba(59,124,246,0.32);
-  --accent:#2E63D6;--accent2:#1E4CB8;--accent-d:rgba(46,99,214,0.08);
-  --green:#0E9A6A;--green-bg:rgba(14,154,106,0.08);--green-t:#0A7553;
-  --red:#DC2626;--red-bg:rgba(220,38,38,0.08);--red-t:#A51E1E;
-  --amber:#C97A12;--amber-bg:rgba(201,122,18,0.08);--amber-t:#8F5A0C;
-  --purple:#7350D6;--purple-bg:rgba(115,80,214,0.08);--purple-t:#5A3CAD;
-  --t1:#101A30;--t2:#48577A;--t3:#8694B0;
-  --shadow:0 12px 36px rgba(20,40,90,0.12);
-}}
-html,body{{min-height:100%;background:var(--bg);font-family:var(--serif);color:var(--t1);font-size:14px;transition:background .35s,color .35s}}
-.bg-fx{{position:fixed;inset:0;background:radial-gradient(ellipse 70% 45% at 50% -8%,rgba(59,124,246,0.13),transparent 62%),var(--bg);z-index:0;pointer-events:none;transition:background .35s}}
-.grid-fx{{position:fixed;inset:0;background-image:linear-gradient(rgba(96,148,246,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(96,148,246,0.025) 1px,transparent 1px);background-size:46px 46px;z-index:0;pointer-events:none}}
-.wrap{{position:relative;z-index:10;max-width:800px;margin:0 auto;padding:24px 16px 64px}}
-.top{{display:flex;align-items:center;justify-content:space-between;margin-bottom:26px;gap:10px}}
-.brand{{display:flex;align-items:center;gap:11px;min-width:0}}
-.brand-img{{width:40px;height:40px;border-radius:50%;overflow:hidden;border:1px solid var(--card-b);box-shadow:0 0 14px rgba(139,92,246,.3),0 0 8px rgba(59,130,246,.25);flex-shrink:0}}
-.brand-img img{{width:100%;height:100%;object-fit:cover}}
-.brand-name{{font-size:14.5px;font-weight:800;color:var(--t1);letter-spacing:-.01em}}
-.brand-sub{{font-size:9.5px;color:var(--t3);font-weight:500}}
-.top-actions{{display:flex;align-items:center;gap:6px;flex-shrink:0}}
-.icon-btn{{width:36px;height:36px;border-radius:11px;background:var(--card);border:1px solid var(--card-b);color:var(--t2);display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;transition:.18s}}
-.icon-btn:hover{{background:var(--accent-d);color:var(--accent2);border-color:var(--card-bh)}}
-
-.sub-info{{background:var(--card);border:1px solid var(--card-b);border-radius:22px;padding:24px 24px 22px;margin-bottom:16px;box-shadow:var(--shadow);position:relative;overflow:hidden}}
-.sub-info::before{{content:'';position:absolute;top:0;right:0;width:160px;height:160px;background:radial-gradient(circle at top right,rgba(59,124,246,.1),transparent 70%);pointer-events:none}}
-.sub-eyebrow{{font-size:10px;font-weight:700;color:var(--accent2);text-transform:uppercase;letter-spacing:.12em;margin-bottom:8px;display:flex;align-items:center;gap:6px}}
-.sub-eyebrow i{{font-size:13px}}
-.sub-name{{font-size:23px;font-weight:800;color:var(--t1);margin-bottom:6px;letter-spacing:-.02em}}
-.sub-desc{{font-size:12.5px;color:var(--t2);line-height:1.8;margin-bottom:14px}}
-.sub-meta-row{{font-size:10.5px;color:var(--t3);margin-bottom:14px;display:flex;align-items:center;gap:6px}}
-.sub-sub-box{{background:var(--accent-d);border:1px solid var(--card-b);border-radius:13px;padding:12px 14px;display:flex;align-items:center;gap:9px;flex-wrap:wrap}}
-.sub-sub-url{{font-family:ui-monospace,monospace;font-size:10px;color:var(--accent2);word-break:break-all;flex:1;min-width:140px}}
-
-.stats-bar{{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px}}
-.stat-card{{background:var(--card);border:1px solid var(--card-b);border-radius:16px;padding:16px 17px;transition:.2s}}
-.stat-card:hover{{border-color:var(--card-bh);transform:translateY(-1px)}}
-.stat-label{{font-size:9px;color:var(--t3);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:7px}}
-.stat-val{{font-size:22px;font-weight:800;color:var(--t1);line-height:1;letter-spacing:-.01em}}
-.stat-sub{{font-size:9.5px;color:var(--t3);margin-top:6px}}
-
-.copy-all-bar{{display:flex;align-items:center;gap:12px;background:linear-gradient(120deg,var(--accent) 0%,#2952C8 100%);border-radius:18px;padding:16px 19px;margin-bottom:18px;box-shadow:0 10px 30px rgba(59,124,246,.28);flex-wrap:wrap}}
-.copy-all-text{{flex:1;min-width:160px}}
-.copy-all-title{{font-size:13.5px;font-weight:800;color:#fff;display:flex;align-items:center;gap:6px}}
-.copy-all-sub{{font-size:10px;color:rgba(255,255,255,.78);margin-top:3px}}
-.copy-all-btn{{background:#fff;color:#1D4ED8;border:none;border-radius:12px;padding:10px 19px;font-family:inherit;font-size:12.5px;font-weight:800;cursor:pointer;display:flex;align-items:center;gap:6px;transition:.18s;white-space:nowrap}}
-.copy-all-btn:hover{{transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,0,0,.22)}}
-.copy-all-btn:active{{transform:translateY(0) scale(.98)}}
-
-.cfg-title{{font-size:12px;font-weight:800;color:var(--t2);margin-bottom:13px;display:flex;align-items:center;gap:6px;text-transform:uppercase;letter-spacing:.07em}}
-.cfg-title i{{color:var(--accent);font-size:15px}}
-.cfg-grid{{display:grid;gap:13px}}
-
-/* ── کارت کانفیگ به‌شکل بلیط دسترسی (signature element) ── */
-.cfg-card{{background:var(--card);border:1px solid var(--card-b);border-radius:18px;transition:all .2s;position:relative;overflow:hidden}}
-.cfg-card:hover{{border-color:var(--card-bh);box-shadow:var(--shadow)}}
-.cfg-top{{padding:17px 19px 15px;position:relative}}
-.cfg-top::after{{content:'';position:absolute;top:0;right:0;width:3px;height:100%;background:var(--green)}}
-.cfg-card.inactive .cfg-top::after{{background:var(--red)}}
-.cfg-head{{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:12px;flex-wrap:wrap}}
-.cfg-label{{font-size:14.5px;font-weight:700;color:var(--t1)}}
-.cfg-badges{{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px}}
-.proto-chip{{font-size:9px;padding:3px 8px;border-radius:7px;font-weight:800;letter-spacing:.02em}}
-.pc-ws{{background:var(--accent-d);color:var(--accent2)}}
-.pc-xhttp{{background:var(--purple-bg);color:var(--purple-t)}}
-.pc-ultra{{background:var(--green-bg);color:var(--green-t)}}
-.cfg-status{{display:flex;align-items:center;gap:5px;font-size:10px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap}}
-.cfg-status.ok{{background:var(--green-bg);color:var(--green-t)}}
-.cfg-status.no{{background:var(--red-bg);color:var(--red-t)}}
-.cfg-usage{{margin-bottom:4px}}
-.ubar{{height:6px;border-radius:4px;background:rgba(96,148,246,0.1);overflow:hidden;margin-bottom:5px}}
-.ubar-f{{height:100%;border-radius:4px;transition:width .5s ease}}
-.utxt{{font-size:10px;color:var(--t3);display:flex;justify-content:space-between}}
-
-/* خط جداکننده‌ی بلیطی با دندانه‌های گرد، شبیه پاره‌خط بُرد بلیط */
-.cfg-tear{{position:relative;height:0;border-top:1.5px dashed var(--card-b);margin:0 19px}}
-.cfg-tear::before,.cfg-tear::after{{content:'';position:absolute;top:50%;width:18px;height:18px;border-radius:50%;background:var(--bg);transform:translateY(-50%);border:1px solid var(--card-b)}}
-.cfg-tear::before{{right:-28px}}
-.cfg-tear::after{{left:-28px}}
-
-.cfg-bottom{{padding:15px 19px 18px}}
-.cfg-link-toggle{{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;background:transparent;border:1px dashed var(--card-b);border-radius:11px;padding:10px 13px;cursor:pointer;font-family:inherit;color:var(--t2);font-size:11.5px;font-weight:600;transition:.15s}}
-.cfg-link-toggle:hover{{background:var(--accent-d);border-color:var(--card-bh);color:var(--accent2)}}
-.cfg-link-toggle .ltl{{display:flex;align-items:center;gap:7px}}
-.cfg-link-toggle i.ti-chevron-down{{transition:transform .2s}}
-.cfg-link-toggle.open i.ti-chevron-down{{transform:rotate(180deg)}}
-.cfg-vless-wrap{{display:grid;grid-template-rows:0fr;transition:grid-template-rows .25s ease}}
-.cfg-vless-wrap.open{{grid-template-rows:1fr}}
-.cfg-vless-inner{{overflow:hidden}}
-.cfg-vless{{background:rgba(0,0,0,.22);border:1px solid var(--card-b);border-radius:10px;padding:11px 13px;font-size:9.8px;font-family:ui-monospace,monospace;color:var(--accent2);word-break:break-all;line-height:1.7;margin-top:9px;max-height:90px;overflow-y:auto}}
-[data-theme="light"] .cfg-vless{{background:rgba(46,99,214,.05)}}
-.cfg-actions{{display:flex;gap:7px;flex-wrap:wrap;margin-top:11px}}
-.btn{{font-family:inherit;font-size:11.5px;font-weight:700;border-radius:10px;padding:8px 15px;cursor:pointer;display:inline-flex;align-items:center;gap:5px;border:none;transition:all .15s;white-space:nowrap}}
-.btn i{{font-size:13px}}
-.btn-p{{background:linear-gradient(135deg,#2F8FFF,#8B5CF6);color:#fff;box-shadow:0 3px 14px rgba(139,92,246,.35)}}
-.btn-p:hover{{background:var(--accent2)}}
-.btn-g{{background:var(--accent-d);color:var(--accent2);border:1px solid rgba(96,148,246,.16)}}
-.btn-g:hover{{background:rgba(96,148,246,.2)}}
-.btn-pur{{background:var(--purple-bg);color:var(--purple-t);border:1px solid rgba(157,123,240,.2)}}
-.btn-pur:hover{{background:rgba(157,123,240,.22)}}
-.conn-chip{{display:inline-flex;align-items:center;gap:4px;font-size:9.5px;padding:3px 8px;border-radius:20px;background:var(--green-bg);color:var(--green-t);font-weight:700}}
-.dot{{width:5px;height:5px;border-radius:50%;background:var(--green);display:inline-block;animation:pulse 2s infinite}}
-@keyframes pulse{{0%,100%{{opacity:1}}50%{{opacity:.25}}}}
-
-/* ── صفحه‌ی قفل / رمز ── */
-.lock-stage{{display:flex;align-items:center;justify-content:center;min-height:78vh;padding:20px 0}}
-.lock-card{{background:var(--card);border:1px solid var(--card-b);border-radius:26px;padding:0;text-align:center;max-width:380px;width:100%;box-shadow:var(--shadow);overflow:hidden;position:relative}}
-.lock-banner{{background:linear-gradient(150deg,rgba(59,124,246,.16),rgba(59,124,246,.02) 70%);padding:38px 30px 26px;position:relative}}
-.lock-shield{{width:64px;height:64px;border-radius:18px;background:var(--accent-d);border:1px solid var(--card-bh);display:flex;align-items:center;justify-content:center;margin:0 auto 18px;position:relative}}
-.lock-shield::after{{content:'';position:absolute;inset:-7px;border-radius:22px;border:1px solid var(--card-b);animation:breathe 2.6s ease-in-out infinite}}
-@keyframes breathe{{0%,100%{{transform:scale(1);opacity:.5}}50%{{transform:scale(1.08);opacity:0}}}}
-.lock-shield i{{font-size:28px;color:var(--accent2)}}
-.lock-title{{font-size:18px;font-weight:800;margin-bottom:6px;color:var(--t1);letter-spacing:-.01em}}
-.lock-sub{{font-size:12px;color:var(--t3);line-height:1.7}}
-.lock-form{{padding:24px 30px 30px}}
-.lock-field{{position:relative;margin-bottom:13px}}
-.lock-inp{{width:100%;padding:13px 44px 13px 44px;border-radius:13px;border:1px solid var(--card-b);background:rgba(0,0,0,.2);color:var(--t1);font-family:inherit;font-size:14px;outline:none;text-align:center;letter-spacing:.14em;transition:.18s}}
-[data-theme="light"] .lock-inp{{background:rgba(46,99,214,.04)}}
-.lock-inp:focus{{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-d)}}
-.lock-eye{{position:absolute;left:13px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--t3);cursor:pointer;font-size:16px;padding:4px;display:flex}}
-.lock-eye:hover{{color:var(--accent2)}}
-.lock-lockicon{{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--t3);font-size:15px;pointer-events:none}}
-.lock-err{{color:var(--red-t);font-size:11.5px;margin-bottom:10px;min-height:16px;display:flex;align-items:center;justify-content:center;gap:5px}}
-.lock-btn{{width:100%;justify-content:center;padding:13px;font-size:13px;border-radius:13px}}
-.lock-footer{{padding:14px 30px;border-top:1px solid var(--card-b);font-size:10px;color:var(--t3);display:flex;align-items:center;justify-content:center;gap:6px}}
-
-.empty-state{{text-align:center;padding:80px 20px;color:var(--t3)}}
-.empty-state i{{font-size:38px;display:block;margin-bottom:14px}}
-
-.toast{{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(40px);background:var(--card);border:1px solid var(--card-b);color:var(--t1);border-radius:12px;padding:10px 20px;font-size:12.5px;font-weight:600;opacity:0;transition:all .25s;z-index:999;pointer-events:none;display:flex;align-items:center;gap:7px;box-shadow:var(--shadow);white-space:nowrap}}
-.toast.show{{opacity:1;transform:translateX(-50%) translateY(0)}}
-.toast.ok{{border-color:rgba(31,184,126,.35);background:var(--green-bg);color:var(--green-t)}}
-
-.qr-modal{{display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:600;align-items:center;justify-content:center;backdrop-filter:blur(6px);padding:20px}}
-.qr-modal.open{{display:flex}}
-.qr-box{{background:var(--card);border:1px solid var(--card-b);border-radius:22px;padding:26px;text-align:center;max-width:340px;width:100%;box-shadow:var(--shadow)}}
-.qr-title{{font-size:13.5px;font-weight:800;margin-bottom:16px;color:var(--t1)}}
-.qr-img{{border-radius:14px;overflow:hidden;margin-bottom:15px}}
-.qr-img img{{width:100%;display:block;background:#fff;padding:10px;border-radius:14px}}
-
-.footer{{text-align:center;padding-top:28px;font-size:10.5px;color:var(--t3)}}
-.footer a{{color:var(--accent2);font-weight:700}}
-
-@media(max-width:520px){{
-  .stats-bar{{grid-template-columns:1fr 1fr}}
-  .stats-bar .stat-card:nth-child(3){{grid-column:1/-1}}
-  .sub-name{{font-size:19px}}
-  .copy-all-bar{{flex-direction:column;align-items:stretch}}
-  .copy-all-btn{{justify-content:center}}
-  .wrap{{padding:16px 12px 50px}}
-  .lock-banner{{padding:32px 22px 22px}}
-  .lock-form{{padding:20px 22px 26px}}
-}}
-@keyframes spin{{to{{transform:rotate(360deg)}}}}
-/* OMID Network public subscription branding */
-:root{{--accent:#0B7289;--accent2:#52D6EF;--accent-d:rgba(11,114,137,.12);--card-b:rgba(82,214,239,.14);--card-bh:rgba(82,214,239,.30)}}
-body{{background:radial-gradient(circle at 18% 7%,rgba(11,114,137,.15),transparent 30%),radial-gradient(circle at 85% 90%,rgba(30,70,92,.18),transparent 32%),var(--bg)}}
-.brand-img{{border-radius:13px;box-shadow:0 0 22px rgba(0,174,206,.24),0 0 10px rgba(255,0,177,.12)}}
-.sub-info,.stat-card,.cfg-card,.lock-card,.qr-box{{background:linear-gradient(145deg,rgba(10,28,43,.68),rgba(6,15,25,.60));backdrop-filter:blur(16px);border-color:rgba(82,214,239,.14)}}
-.copy-all-bar{{background:linear-gradient(120deg,#075E73 0%,#0B879F 55%,#1D5A83 100%);box-shadow:0 10px 30px rgba(6,124,147,.24)}}
-.btn-p{{background:linear-gradient(135deg,#075E73,#0C9BB7);box-shadow:0 5px 18px rgba(6,124,147,.22)}}
-.btn-g{{background:rgba(8,110,134,.12);color:#6BDCF2;border-color:rgba(82,214,239,.16)}}
-.footer{{letter-spacing:.02em}}
-
-/* OMID v1.2.6 VIP full-fix light surfaces */
-[data-theme="light"] body{background:linear-gradient(135deg,#edfaff 0%,#f9fdff 46%,#ecfff5 100%)!important;color:#102a3d!important}
-[data-theme="light"] .mob-top{background:linear-gradient(180deg,rgba(250,255,255,.98),rgba(233,248,249,.96))!important;color:#102a3d!important;border-color:rgba(16,134,164,.12)!important}
-[data-theme="light"] .topbar{background:transparent!important}
-[data-theme="light"] .sidebar{background:linear-gradient(180deg,#f7fdff 0%,#eaf6f8 100%)!important;border-color:rgba(12,145,177,.16)!important;box-shadow:18px 0 50px rgba(45,95,110,.10)!important}
-[data-theme="light"] .side-telemetry,[data-theme="light"] .metric,[data-theme="light"] .card,[data-theme="light"] .create-panel,[data-theme="light"] .srv-panel,[data-theme="light"] .pw-panel,[data-theme="light"] .traf-mini,[data-theme="light"] .traf-chart-card,[data-theme="light"] .conn-hero-tile,[data-theme="light"] .conn-toolbar,[data-theme="light"] .cfg-card,[data-theme="light"] .conn-card,[data-theme="light"] .modal,[data-theme="light"] .modal-v2,[data-theme="light"] .sub-card{background:linear-gradient(145deg,rgba(255,255,255,.95),rgba(239,249,250,.91))!important;color:#17384b!important;border-color:rgba(14,158,208,.15)!important;box-shadow:0 14px 34px rgba(36,94,112,.08)!important}
-[data-theme="light"] .vl-code,[data-theme="light"] .cfg-vless,[data-theme="light"] #ws-log,[data-theme="light"] .fi,[data-theme="light"] .fs,[data-theme="light"] .cp-input-full,[data-theme="light"] .modal-v2-input,[data-theme="light"] .pw-input,[data-theme="light"] .lock-inp,[data-theme="light"] .lmodal-search input{background:#fff!important;color:#16384b!important;border-color:rgba(14,158,208,.18)!important}
-[data-theme="light"] .fs option{background:#fff!important;color:#16384b!important}
-[data-theme="light"] .nav-it{color:#547685!important}
-[data-theme="light"] .nav-it:hover{background:rgba(14,158,208,.08)!important;color:#173a4d!important}
-[data-theme="light"] .nav-it.on{background:linear-gradient(90deg,rgba(14,158,208,.15),rgba(5,150,105,.07))!important;color:#163c4e!important}
-[data-theme="light"] .nav-it i{color:#288ca5!important}
-[data-theme="light"] .nav-sec-label{color:#3c7183!important}
-[data-theme="light"] .sb-foot{background:linear-gradient(180deg,rgba(247,254,255,.7),rgba(231,244,248,.98))!important;border-color:rgba(14,145,177,.12)!important}
-[data-theme="light"] .side-lang,[data-theme="light"] .theme-btn{background:linear-gradient(135deg,rgba(14,158,208,.07),rgba(5,150,105,.06))!important;color:#087ea4!important;border-color:rgba(14,158,208,.16)!important}
-[data-theme="light"] .logout-btn{background:rgba(232,73,96,.055)!important;color:#d3546b!important;border-color:rgba(211,84,107,.15)!important}
-[data-theme="light"] .toast{background:rgba(255,255,255,.97)!important;color:#15394c!important;border-color:rgba(14,158,208,.15)!important}
-[data-theme="light"] .modal-bg{background:rgba(19,47,59,.23)!important}
-
-</style>
-</head>
-<body>
-<div class="bg-fx"></div><div class="grid-fx"></div>
-<div class="toast" id="toast"></div>
-<div class="qr-modal" id="qr-modal" onclick="this.classList.remove('open')">
-  <div class="qr-box" onclick="event.stopPropagation()">
-    <div class="qr-title" id="qr-label">QR Code</div>
-    <div class="qr-img"><img id="qr-img" src="" alt="QR"></div>
-    <button class="btn btn-g" style="width:100%;justify-content:center" onclick="document.getElementById('qr-modal').classList.remove('open')"><i class="ti ti-x"></i> Close / بستن</button>
-  </div>
-</div>
-<div class="wrap">
-  <div class="top">
-    <div class="brand">
-      <div class="brand-img"><img src="data:image/png;base64,{LOGO_B64}" alt="OMID"></div>
-      <div><div class="brand-name">OMID-IRAN PANEL</div><div class="brand-sub">OMID · v1.0</div></div>
-    </div>
-    <div class="top-actions">
-      <button class="icon-btn" id="pub-lang" onclick="togglePubLang()" title="Language / زبان">FA / EN</button>
-      <button class="icon-btn" id="theme-toggle" onclick="toggleTheme()" title="Theme / تم"><i class="ti ti-sun" id="theme-icon"></i></button>
-    </div>
-  </div>
-  <div id="root">
-    <div class="empty-state"><i class="ti ti-loader-2" style="animation:spin 1s linear infinite"></i>در حال بارگذاری...</div>
-  </div>
-  <div class="footer">OMID Network · OMID-IRAN PANEL v1.0 · Free For All</div>
-</div>
-<script>
-const UUID_KEY='{uuid_key}';
-let savedPw='';
-
-let pubLang=localStorage.getItem('omid-pub-lang')||'fa';
-function togglePubLang(){{pubLang=pubLang==='fa'?'en':'fa';localStorage.setItem('omid-pub-lang',pubLang);document.getElementById('pub-lang').textContent=pubLang==='en'?'FA':'EN';document.body.dataset.uiLang=pubLang;document.body.dir=pubLang==='en'?'ltr':'rtl';}}
-let isDark=localStorage.getItem('gateway-pub-theme')!=='light';
-function applyTheme(dark){{
-  document.documentElement.setAttribute('data-theme',dark?'dark':'light');
-  document.getElementById('theme-icon').className='ti '+(dark?'ti-sun':'ti-moon');
-}}
-function toggleTheme(){{isDark=!isDark;localStorage.setItem('gateway-pub-theme',isDark?'dark':'light');applyTheme(isDark)}}
-applyTheme(isDark);
-togglePubLang();
-
-function toast(msg,type=''){{
-  const t=document.getElementById('toast');
-  t.textContent=msg;t.className='toast show'+(type?' '+type:'');
-  setTimeout(()=>t.classList.remove('show'),2400);
-}}
-function esc(s){{return String(s||'').replace(/[&<>"']/g,c=>({{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}}[c]))}}
-function fmtB(b){{if(!b||b===0)return '0 B';if(b<1024)return b+' B';if(b<1024**2)return (b/1024).toFixed(1)+' KB';if(b<1024**3)return (b/1024**2).toFixed(2)+' MB';return (b/1024**3).toFixed(2)+' GB'}}
-function toFa(n){{return String(n).replace(/\\d/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d])}}
-function protoChip(p){{
-  if(p==='xhttp-stream-one')return '<span class="proto-chip pc-ultra"><i class="ti ti-bolt"></i> XHTTP ULTRA</span>';
-  if(p&&p.startsWith('xhttp'))return '<span class="proto-chip pc-xhttp">'+esc(p)+'</span>';
-  return '<span class="proto-chip pc-ws">VLESS · WS</span>';
-}}
-
-function showQR(label,link){{
-  document.getElementById('qr-label').textContent=label;
-  document.getElementById('qr-img').src='https://api.qrserver.com/v1/create-qr-code/?size=260x260&data='+encodeURIComponent(link);
-  document.getElementById('qr-modal').classList.add('open');
-}}
-
-function toggleLink(i){{
-  const wrap=document.getElementById('vw-'+i);
-  const btn=document.getElementById('vt-'+i);
-  const open=wrap.classList.toggle('open');
-  btn.classList.toggle('open',open);
-  btn.querySelector('.ltl span').textContent = open ? 'پنهان کردن لینک' : 'نمایش لینک کانفیگ';
-}}
-
-async function loadData(pw=''){{
-  const url='/api/public/sub/'+UUID_KEY+(pw?'?pw='+encodeURIComponent(pw):'');
-  const r=await fetch(url);
-  return r.json();
-}}
-
-function renderLock(name,errMsg=''){{
-  document.getElementById('root').innerHTML=`
-    <div class="lock-stage">
-      <div class="lock-card">
-        <div class="lock-banner">
-          <div class="lock-shield"><i class="ti ti-shield-lock"></i></div>
-          <div class="lock-title">${{esc(name)}}</div>
-          <div class="lock-sub">این گروه با رمز محافظت شده. برای دیدن کانفیگ‌ها رمز رو وارد کنید.</div>
-        </div>
-        <div class="lock-form">
-          <div class="lock-err" id="lock-err">${{errMsg ? '<i class="ti ti-alert-circle"></i> '+esc(errMsg) : ''}}</div>
-          <div class="lock-field">
-            <i class="ti ti-lock lock-lockicon"></i>
-            <input class="lock-inp" type="password" id="lock-pw" placeholder="••••••••" autofocus>
-            <button class="lock-eye" type="button" onclick="togglePwVis()"><i class="ti ti-eye" id="lock-eye-icon"></i></button>
-          </div>
-          <button class="btn btn-p lock-btn" onclick="submitLock()"><i class="ti ti-lock-open"></i> ورود به گروه</button>
-        </div>
-        <div class="lock-footer"><i class="ti ti-shield-check"></i> اتصال شما رمزنگاری‌شده است</div>
-      </div>
-    </div>
-  `;
-  const inp=document.getElementById('lock-pw');
-  inp.addEventListener('keydown',e=>{{if(e.key==='Enter')submitLock()}});
-}}
-
-function togglePwVis(){{
-  const inp=document.getElementById('lock-pw');
-  const icon=document.getElementById('lock-eye-icon');
-  const toText = inp.type==='password';
-  inp.type = toText ? 'text' : 'password';
-  icon.className = 'ti '+(toText ? 'ti-eye-off' : 'ti-eye');
-}}
-
-async function submitLock(){{
-  const pw=document.getElementById('lock-pw').value;
-  const data=await loadData(pw);
-  if(data.locked){{renderLock(data.name,'رمز اشتباه است');return}}
-  savedPw=pw;
-  renderContent(data);
-}}
-
-function renderContent(d){{
-  const activeCount=d.links.filter(l=>l.active).length;
-  const baseSubUrl = d.sub_url || (window.location.protocol + '//' + window.location.host + '/sub-group/' + UUID_KEY);
-  const subUrl = baseSubUrl + (savedPw ? '?pw=' + encodeURIComponent(savedPw) : '');
-
-  window._subUrl  = subUrl;
-  window._subName = d.name;
-  window._links   = d.links.map(l => ({{
-    vless : l.vless_link,
-    sub   : l.sub_url + (savedPw ? '?pw=' + encodeURIComponent(savedPw) : ''),
-    label : l.label,
-  }}));
-
-  document.getElementById('root').innerHTML=`
-    <div class="sub-info">
-      <div class="sub-eyebrow"><i class="ti ti-folders"></i> گروه دسترسی</div>
-      <div class="sub-name">${{esc(d.name)}}</div>
-      ${{d.desc ? `<div class="sub-desc">${{esc(d.desc)}}</div>` : ''}}
-      <div class="sub-meta-row"><i class="ti ti-clock"></i> آخرین بروزرسانی: ${{new Date().toLocaleTimeString('fa-IR')}}</div>
-      <div class="sub-sub-box">
-        <span class="sub-sub-url">${{esc(subUrl)}}</span>
-        <button class="btn btn-pur" style="padding:7px 12px;font-size:10.5px"
-          onclick="navigator.clipboard.writeText(window._subUrl).then(()=>toast('لینک ساب کپی شد ✓','ok'))">
-          <i class="ti ti-copy"></i> کپی لینک ساب
-        </button>
-        <button class="btn btn-g" style="padding:7px 12px;font-size:10.5px"
-          onclick="showQR(window._subName + ' — کل گروه', window._subUrl)">
-          <i class="ti ti-qrcode"></i> QR کل
-        </button>
-      </div>
-    </div>
-
-    <div class="copy-all-bar">
-      <div class="copy-all-text">
-        <div class="copy-all-title"><i class="ti ti-copy"></i> Copy all configurations / کپی همه‌ی کانفیگ‌ها</div>
-        <div class="copy-all-sub">تمام لینک‌های فعال این گروه را یک‌جا کپی کن</div>
-      </div>
-      <button class="copy-all-btn" onclick="copyAllConfigs()"><i class="ti ti-clipboard-copy"></i> کپی همه (${{toFa(activeCount)}})</button>
-    </div>
-
-    <div class="stats-bar">
-      <div class="stat-card">
-        <div class="stat-label">کانفیگ‌های فعال</div>
-        <div class="stat-val">${{toFa(activeCount)}}</div>
-        <div class="stat-sub">از ${{toFa(d.links.length)}} کانفیگ</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Live Connections / اتصالات زنده</div>
-        <div class="stat-val">${{toFa(d.active_connections)}}</div>
-        <div class="stat-sub" style="color:var(--green-t);display:flex;align-items:center;gap:4px"><span class="dot"></span> آنلاین</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-label">Total Usage / کل مصرف</div>
-        <div class="stat-val" style="font-size:17px;margin-top:3px">${{esc(d.total_used_fmt)}}</div>
-        <div class="stat-sub">همه کانفیگ‌ها</div>
-      </div>
-    </div>
-
-    <div class="cfg-title"><i class="ti ti-link"></i> Configurations / کانفیگ‌ها (${{toFa(d.links.length)}} عدد)</div>
-    <div class="cfg-grid">
-      ${{d.links.map((l, i) => {{
-        const pct = l.limit_bytes === 0 ? 0 : Math.min(100, l.used_bytes / l.limit_bytes * 100);
-        const bc  = pct > 90 ? 'var(--red)' : pct > 70 ? 'var(--amber)' : 'var(--green)';
-        const lim = l.limit_bytes === 0 ? '∞' : fmtB(l.limit_bytes);
-        return `
-          <div class="cfg-card${{l.active ? '' : ' inactive'}}">
-            <div class="cfg-top">
-              <div class="cfg-head">
-                <div>
-                  <div class="cfg-label">${{esc(l.label)}}</div>
-                  <div class="cfg-badges">
-                    ${{protoChip(l.protocol)}}
-                    ${{l.connections > 0 ? `<span class="conn-chip"><span class="dot"></span> ${{toFa(l.connections)}} اتصال</span>` : ''}}
-                  </div>
-                </div>
-                <span class="cfg-status ${{l.active ? 'ok' : 'no'}}">${{l.active ? '<i class="ti ti-circle-check"></i> فعال' : '<i class="ti ti-circle-x"></i> غیرفعال'}}</span>
-              </div>
-              <div class="cfg-usage">
-                <div class="ubar"><div class="ubar-f" style="width:${{pct}}%;background:${{bc}}"></div></div>
-                <div class="utxt"><span>${{esc(l.used_fmt)}} مصرف شده</span><span>سهمیه: ${{lim}}</span></div>
-              </div>
-            </div>
-            <div class="cfg-tear"></div>
-            <div class="cfg-bottom">
-              <button class="cfg-link-toggle" id="vt-${{i}}" onclick="toggleLink(${{i}})">
-                <span class="ltl"><i class="ti ti-eye"></i> <span>نمایش لینک کانفیگ</span></span>
-                <i class="ti ti-chevron-down"></i>
-              </button>
-              <div class="cfg-vless-wrap" id="vw-${{i}}">
-                <div class="cfg-vless-inner">
-                  <div class="cfg-vless">${{esc(l.vless_link)}}</div>
-                </div>
-              </div>
-              <div class="cfg-actions">
-                <button class="btn btn-p"
-                  onclick="navigator.clipboard.writeText(window._links[${{i}}].vless).then(()=>toast('لینک کپی شد ✓','ok'))">
-                  <i class="ti ti-copy"></i> کپی لینک
-                </button>
-                <button class="btn btn-g"
-                  onclick="showQR(window._links[${{i}}].label, window._links[${{i}}].vless)">
-                  <i class="ti ti-qrcode"></i> QR
-                </button>
-              </div>
-            </div>
-          </div>
-        `;
-      }}).join('')}}
-    </div>
-  `;
-  setTimeout(() => autoRefresh(), 30000);
-}}
-
-function copyAllConfigs(){{
-  const links=window._links||[];
-  if(!links.length){{toast('کانفیگی برای کپی نیست','');return}}
-  const text=links.map(l=>l.vless).join('\\n');
-  navigator.clipboard.writeText(text).then(()=>toast('همه‌ی '+toFa(links.length)+' کانفیگ کپی شد ✓','ok'));
-}}
-
-async function autoRefresh(){{
-  try{{
-    const data = await loadData(savedPw);
-    if (!data.locked) renderContent(data);
-  }} catch(e) {{}}
-}}
-
-async function init(){{
-  try{{
-    const data = await loadData();
-    if (data.locked) {{ renderLock(data.name); return; }}
-    renderContent(data);
-  }} catch(e) {{
-    document.getElementById('root').innerHTML =
-      '<div class="empty-state" style="color:var(--red-t)"><i class="ti ti-alert-circle"></i>خطا در بارگذاری</div>';
-  }}
-}}
-
-init();
-</script>
-</body></html>"""

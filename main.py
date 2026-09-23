@@ -5,6 +5,7 @@ import hashlib
 import secrets
 import time
 import aiofiles
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from urllib.parse import quote
@@ -18,12 +19,88 @@ import uvicorn
 import httpx
 import logging
 
+# ✅ رفع باگ __main__ vs main در circular imports
+import sys as _sys
+if __name__ == "__main__" and "main" not in _sys.modules:
+    _sys.modules["main"] = _sys.modules["__main__"]
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("OMIDIRAN_PANEL")
 
 IRAN_TZ = ZoneInfo("Asia/Tehran")
 
-app = FastAPI(title="OMID-IRAN PANEL", docs_url=None, redoc_url=None)
+# ══ Browser vs Client detection ══
+import re as _re
+
+_BROWSER_UA_RE = _re.compile(
+    r"Mozilla|Chrome|Firefox|Safari|Edge|Opera|Brave|Vivaldi|MSIE|Trident|SamsungBrowser|MiuiBrowser|OPR/|YaBrowser|DuckDuckBot",
+    _re.IGNORECASE
+)
+_CLIENT_UA_HINTS = (
+    "v2ray", "nekobox", "neko", "clash", "sing-box", "singbox", "streisand",
+    "shadowrocket", "hiddify", "foxray", "mihomo", "surge", "quantumult",
+    "loon", "stash", "v2rayn", "shadowsocks", "trojan", "okhttp",
+    "python-requests", "go-http-client", "curl", "wget", "postmanruntime",
+    "telegrambot", "axios", "node-fetch", "deno", "bun",
+)
+
+def is_browser_request(request: Request) -> bool:
+    """چک می‌کنه که درخواست از مرورگر اومده یا از کلاینت v2ray.
+    - مرورگر → True → HTML UI
+    - کلاینت → False → base64"""
+    ua = (request.headers.get("user-agent") or "").strip()
+    if not ua:
+        return False  # UA خالی = کلاینت
+    
+    ua_low = ua.lower()
+    
+    # اگه نشونه‌ی کلاینت بود → کلاینت
+    for hint in _CLIENT_UA_HINTS:
+        if hint in ua_low:
+            return False
+    
+    # اگه Accept: text/html داشت → مرورگر
+    accept = (request.headers.get("accept") or "").lower()
+    if "text/html" in accept:
+        return True
+    
+    # اگه UA شبیه مرورگر بود → مرورگر
+    if _BROWSER_UA_RE.search(ua):
+        return True
+    
+    # در غیر این صورت → کلاینت
+    return False
+
+# ── Startup / Shutdown ────────────────────────────────────────────────────────
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Lifespan handler — جایگزین on_event (deprecated)"""
+    global http_client
+    # ── Startup ──
+    limits = httpx.Limits(max_connections=500, max_keepalive_connections=100)
+    timeout = httpx.Timeout(30.0, connect=10.0)
+    http_client = httpx.AsyncClient(
+        limits=limits, timeout=timeout, follow_redirects=True,
+    )
+    await load_state()
+    await _tg_start_bot()
+    log_activity("system", "سرور راه‌اندازی شد", "ok")
+    logger.info(f"OMID-IRAN PANEL v1.0 started on port {CONFIG['port']}")
+
+    yield  # ← اینجا اپلیکیشن اجرا می‌شه
+
+    # ── Shutdown ──
+    await save_state()
+    await _tg_stop_bot()
+    if http_client:
+        await http_client.aclose()
+
+app = FastAPI(
+    title="OMID-IRAN PANEL",
+    docs_url=None,
+    redoc_url=None,
+    lifespan=lifespan,  # ← این پارامتر جدید
+)
 
 # ── Persistence ───────────────────────────────────────────────────────────────
 DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
@@ -215,27 +292,6 @@ async def require_auth(request: Request):
         raise HTTPException(status_code=401, detail="unauthorized")
     return token
 
-# ── Startup / Shutdown ────────────────────────────────────────────────────────
-@app.on_event("startup")
-async def startup():
-    global http_client
-    limits = httpx.Limits(max_connections=500, max_keepalive_connections=100)
-    timeout = httpx.Timeout(30.0, connect=10.0)
-    http_client = httpx.AsyncClient(
-        limits=limits, timeout=timeout, follow_redirects=True,
-    )
-    await load_state()
-    await _tg_start_bot()
-    log_activity("system", "سرور راه‌اندازی شد", "ok")
-    logger.info(f"OMID-IRAN PANEL v1.0 started on port {CONFIG['port']}")
-
-@app.on_event("shutdown")
-async def shutdown():
-    await save_state()
-    await _tg_stop_bot()
-    if http_client:
-        await http_client.aclose()
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
 def get_host(request: Request | None = None) -> str:
     """آدرس دامنه رو ترجیحاً از خودِ درخواست HTTP می‌گیره (هدر Host/X-Forwarded-Host)
@@ -249,6 +305,15 @@ def get_host(request: Request | None = None) -> str:
             CONFIG["host"] = h  # کش آخرین دامنه‌ی واقعی دیده‌شده، برای جاهایی که request نداریم (مثل ربات تلگرام)
             return h
     return os.environ.get("RAILWAY_PUBLIC_DOMAIN", CONFIG["host"])
+
+def get_scheme(request: Request | None = None) -> str:
+    """پروتکل واقعی رو از درخواست تشخیص می‌ده (http یا https).
+    روی Railway و پراکسی‌ها از X-Forwarded-Proto استفاده می‌کنه."""
+    if request is not None:
+        proto = request.headers.get("x-forwarded-proto") or request.url.scheme
+        if proto:
+            return proto.split(",")[0].strip()
+    return "https"  # پیش‌فرض prod
 
 def generate_uuid() -> str:
     h = secrets.token_hex(16)
@@ -436,6 +501,46 @@ def client_ip(request: Request) -> str:
         return real_ip.strip()
     return request.client.host if request.client else "نامشخص"
 
+# ══════════════════════════════════════════════════════════════════════════════
+# Sub-token — آیدی دلخواه برای لینک ساب (به‌جای UUID)
+# ══════════════════════════════════════════════════════════════════════════════
+import re as _re
+
+_SUB_TOKEN_RE = _re.compile(r"^[A-Za-z0-9_-]{3,32}$")
+
+
+def find_link_by_key(key: str) -> tuple[str | None, dict | None]:
+    """جستجو بر اساس UUID یا sub_token سفارشی.
+    اول UUID (سریع)، بعد sub_token (slow path)."""
+    if not key:
+        return None, None
+    # 1) UUID — O(1)
+    if key in LINKS:
+        return key, LINKS[key]
+    # 2) sub_token — O(n)
+    for uid, l in LINKS.items():
+        tok = (l.get("sub_token") or "").strip()
+        if tok and tok == key:
+            return uid, l
+    return None, None
+
+
+def normalize_sub_token(tok: str, ignore_uid: str | None = None) -> tuple[bool, str]:
+    """اعتبارسنجی و یکتاسازی sub_token.
+    Returns: (ok, cleaned_value_or_error_message)"""
+    tok = (tok or "").strip()
+    if not tok:
+        return True, ""  # خالی = بذار خالی بمونه (اختیاری)
+    if not _SUB_TOKEN_RE.match(tok):
+        return False, "Sub Token باید ۳ تا ۳۲ کاراکتر و شامل حروف انگلیسی/عدد/-/_ باشه"
+    # چک یکتایی
+    for uid, l in LINKS.items():
+        if uid == ignore_uid:
+            continue
+        if (l.get("sub_token") or "").strip() == tok:
+            return False, f"Sub Token «{tok}» قبلاً استفاده شده"
+    return True, tok
+
 # ── Default link ──────────────────────────────────────────────────────────────
 _default_link_created = False
 
@@ -464,6 +569,7 @@ async def ensure_default_link():
                     "port": DEFAULT_PORT,
                     "ip_limit": 0,
                     "speed_limit_bytes": DEFAULT_SPEED_LIMIT,
+                    "sub_token": "OMIDIRAN",  # ← آیدی دلخواه برای لینک پیش‌فرض
                 }
                 asyncio.create_task(save_state())
         _default_link_created = True
@@ -485,18 +591,42 @@ async def health():
 async def subscription_single(uuid: str, request: Request):
     import base64
     async with LINKS_LOCK:
-        link = LINKS.get(uuid)
+        real_uid, link = find_link_by_key(uuid)
     if not link or not is_link_allowed(link):
         raise HTTPException(status_code=404, detail="not found or inactive")
+
+    # 🌐 از مرورگر → UI
+    if is_browser_request(request):
+        try:
+            from public_page import get_single_config_page_html
+            return HTMLResponse(content=get_single_config_page_html(real_uid))
+        except ImportError:
+            pass
+
+    # 📱 از کلاینت → base64
     host = get_host(request)
-    vless = vless_link_for_link(link, uuid, host)
+    vless = vless_link_for_link(link, real_uid, host)
     content = base64.b64encode(vless.encode()).decode()
     return Response(content=content, media_type="text/plain",
                     headers={"profile-title": quote(link["label"]), "support-url": SUPPORT_URL})
 
 @app.get("/sub-all")
-async def subscription_all(request: Request, _=Depends(require_auth)):
+async def subscription_all(request: Request):
     import base64
+    is_auth = await is_valid_session(request.cookies.get(SESSION_COOKIE))
+    browser = is_browser_request(request)
+
+    # 🌐 مرورگر اومد
+    if browser:
+        if not is_auth:
+            return RedirectResponse(url="/")
+        # ادمین لاگین‌کرده → Admin UI
+        from public_page import get_admin_all_page_html
+        return HTMLResponse(content=get_admin_all_page_html())
+
+    # 📱 کلاینت اومد → base64
+    if not is_auth:
+        raise HTTPException(status_code=401, detail="unauthorized")
     host = get_host(request)
     async with LINKS_LOCK:
         lines = [
@@ -629,6 +759,14 @@ async def sub_group_subscription(uuid_key: str, request: Request):
         sub = next((s for s in SUBS.values() if s.get("uuid_key") == uuid_key), None)
     if not sub:
         raise HTTPException(status_code=404, detail="not found")
+
+    # 🌐 اگه از مرورگر اومد → UI گروه
+    if is_browser_request(request):
+        try:
+            from public_page import get_public_page_html
+            return HTMLResponse(content=get_public_page_html(uuid_key))
+        except ImportError:
+            pass  # اگه ماژول نبود، برو سراغ base64
 
     if sub.get("password_hash"):
         pw = request.query_params.get("pw", "")
@@ -858,6 +996,7 @@ async def make_link(
     port: int = DEFAULT_PORT,
     ip_limit: int = 0,
     speed_limit_bytes: int = 0,
+    sub_token: str = "",
 ) -> tuple[str, dict]:
     if protocol not in PROTOCOLS:
         protocol = DEFAULT_PROTOCOL
@@ -884,6 +1023,7 @@ async def make_link(
             "port": port,
             "ip_limit": max(0, ip_limit),
             "speed_limit_bytes": max(0, speed_limit_bytes),
+            "sub_token": (sub_token or "").strip(),
         }
     if sub_id:
         async with SUBS_LOCK:
@@ -921,6 +1061,28 @@ async def set_link_active(uid: str, active: bool) -> dict | None:
     log_activity("link", f"کانفیگ «{label}» {'فعال' if active else 'غیرفعال'} شد", "ok" if active else "warn")
     asyncio.create_task(save_state())
     return LINKS[uid]
+
+async def update_link_field(uid: str, field: str, value) -> dict | None:
+    """ویرایش یک فیلد خاص از کانفیگ — استفاده‌ی ربات تلگرام."""
+    async with LINKS_LOCK:
+        if uid not in LINKS:
+            return None
+        LINKS[uid][field] = value
+        link = dict(LINKS[uid])
+    log_activity("link", f"کانفیگ «{link.get('label','?')}» ویرایش شد: {field}", "info")
+    asyncio.create_task(save_state())
+    return link
+
+async def reset_link_usage(uid: str) -> dict | None:
+    """ریست کردن مصرف یک کانفیگ."""
+    async with LINKS_LOCK:
+        if uid not in LINKS:
+            return None
+        LINKS[uid]["used_bytes"] = 0
+        link = dict(LINKS[uid])
+    log_activity("link", f"مصرف کانفیگ «{link.get('label','?')}» ریست شد", "info")
+    asyncio.create_task(save_state())
+    return link
 
 # ── Sub-group helpers (reusable — هم API وب هم ربات تلگرام از همین‌ها استفاده می‌کنن) ──
 async def create_sub_group(name: str = "گروه جدید", desc: str = "", password: str = "") -> tuple[str, dict]:
@@ -1005,6 +1167,13 @@ async def create_link(request: Request, _=Depends(require_auth)):
     su = body.get("speed_limit_unit") or "MBIT"
     speed_limit_bytes = 0 if sv <= 0 else parse_speed_to_bytes(sv, su)
 
+    # ✅ اعتبارسنجی sub_token
+    sub_token_raw = str(body.get("sub_token") or "").strip()
+    ok, result = normalize_sub_token(sub_token_raw)
+    if not ok:
+        raise HTTPException(status_code=400, detail=result)
+    sub_token = result
+
     uid, link = await make_link(
         label=body.get("label") or "لینک جدید",
         limit_bytes=limit_bytes,
@@ -1017,32 +1186,38 @@ async def create_link(request: Request, _=Depends(require_auth)):
         port=port,
         ip_limit=ip_limit,
         speed_limit_bytes=speed_limit_bytes,
+        sub_token=sub_token,
     )
 
     host = get_host(request)
+    scheme = get_scheme(request)
+    sub_slug = sub_token if sub_token else uid
     return {
         "uuid": uid,
         **link,
         "expired": False,
         "vless_link": vless_link_for_link(link, uid, host),
-        "sub_url": f"https://{host}/sub/{uid}",
+        "sub_url": f"{scheme}://{host}/sub/{sub_slug}",
     }
 
 @app.get("/api/links")
 async def list_links(request: Request, _=Depends(require_auth)):
     host = get_host(request)
+    scheme = get_scheme(request)
     async with LINKS_LOCK:
         snap = dict(LINKS)
     result = []
     for uid, d in snap.items():
         proto = d.get("protocol", DEFAULT_PROTOCOL)
+        tok = (d.get("sub_token") or "").strip()
+        sub_slug = tok if tok else uid
         result.append({
             "uuid": uid,
             **d,
             "protocol": proto,
             "expired": is_link_expired(d),
             "vless_link": vless_link_for_link(d, uid, host),
-            "sub_url": f"https://{host}/sub/{uid}",
+            "sub_url": f"{scheme}://{host}/sub/{sub_slug}",
             "connected_ips": len(unique_ips_for_uuid(uid)),
         })
     result.sort(key=lambda x: x["created_at"], reverse=True)
@@ -1091,13 +1266,13 @@ async def update_link(uid: str, request: Request, _=Depends(require_auth)):
             except (TypeError, ValueError):
                 il = 0
             link["ip_limit"] = max(0, il)
-        if "speed_limit_value" in body:
-            sv = float(body.get("speed_limit_value") or 0)
-            su = body.get("speed_limit_unit") or "MBIT"
-            link["speed_limit_bytes"] = 0 if sv <= 0 else parse_speed_to_bytes(sv, su)
-            from speed_limit import reset_bucket
-            reset_bucket(uid)
-        if any(k in body for k in ("label", "note", "limit_value", "expires_days", "fingerprint", "alpn", "port", "ip_limit", "speed_limit_value")):
+        if "sub_token" in body:
+            ok, result = normalize_sub_token(str(body.get("sub_token") or ""), ignore_uid=uid)
+            if not ok:
+                raise HTTPException(status_code=400, detail=result)
+            link["sub_token"] = result
+            log_activity("link", f"Sub Token کانفیگ «{link['label']}» تنظیم شد: {result or 'پاک شد'}", "info")
+        if any(k in body for k in ("label", "note", "limit_value", "expires_days", "fingerprint", "alpn", "port", "ip_limit", "speed_limit_value", "sub_token")):
             log_activity("link", f"کانفیگ «{link['label']}» ویرایش شد", "info")
         new_sub = body.get("sub_id", "UNCHANGED")
         if new_sub != "UNCHANGED":
@@ -1128,16 +1303,12 @@ async def delete_link(uid: str, _=Depends(require_auth)):
 # VLESS Relay — جدا شده به relay_vless.py (دست نخورده)
 # ══════════════════════════════════════════════════════════════════════════════
 
-from relay_vless import (
-    RELAY_BUF,
-    parse_vless_header,
-    check_and_use,
-    relay_ws_to_tcp,
-    relay_tcp_to_ws,
-    websocket_tunnel,
-)
+# ✅ Lazy import برای جلوگیری از circular import با relay_vless
+def _register_ws_route():
+    from relay_vless import websocket_tunnel
+    app.add_api_websocket_route("/ws/{uuid}", websocket_tunnel)
 
-app.add_api_websocket_route("/ws/{uuid}", websocket_tunnel)
+_register_ws_route()
 
 # ══════════════════════════════════════════════════════════════════════════════
 # XHTTP — Siz10a XHTTP Ultra (ترابرد جدید، جدا از VLESS/WS، هر ۳ مد)
@@ -1255,11 +1426,42 @@ async def http_proxy(target_url: str, request: Request):
 # ── Public sub page ───────────────────────────────────────────────────────────
 @app.get("/p/{uuid_key}", response_class=HTMLResponse)
 async def public_sub_page(uuid_key: str, request: Request):
-    from pages import get_public_page_html
+    import base64
     async with SUBS_LOCK:
         sub = next(({"sub_id": sid, **s} for sid, s in SUBS.items() if s.get("uuid_key") == uuid_key), None)
     if not sub:
         return HTMLResponse("<h2 style='font-family:sans-serif;padding:40px'>گروه پیدا نشد</h2>", status_code=404)
+
+    # 📱 اگه از کلاینت اومد → base64 (همه‌ی کانفیگ‌های گروه)
+    if not is_browser_request(request):
+        # اگه گروه رمزداره، کاربر باید ?pw=XXXX بفرسته
+        if sub.get("password_hash"):
+            pw = request.query_params.get("pw", "")
+            if hash_password(pw) != sub["password_hash"]:
+                raise HTTPException(status_code=403, detail="wrong password")
+
+        host = get_host(request)
+        link_ids = sub.get("link_ids", [])
+        async with LINKS_LOCK:
+            lines = []
+            for lid in link_ids:
+                link = LINKS.get(lid)
+                if link and is_link_allowed(link):
+                    lines.append(vless_link_for_link(link, lid, host))
+
+        content = base64.b64encode("\n".join(lines).encode()).decode()
+        return Response(
+            content=content,
+            media_type="text/plain",
+            headers={
+                "profile-title": quote(sub["name"]),
+                "support-url": SUPPORT_URL,
+                "profile-update-interval": "12",
+            }
+        )
+
+    # 🌐 اگه از مرورگر اومد → UI
+    from public_page import get_public_page_html
     return HTMLResponse(content=get_public_page_html(uuid_key))
 
 @app.get("/api/public/sub/{uuid_key}")
@@ -1317,6 +1519,149 @@ async def public_sub_data(uuid_key: str, request: Request):
         "active_connections": active_conns,
         "total_used_fmt": fmt_bytes(total_used),
         "links": links_out,
+    }
+
+def _serialize_link_for_admin(link: dict, uid: str, host: str) -> dict:
+    """یه کانفیگ رو برای صفحه‌ی ادمین آماده می‌کنه."""
+    proto = link.get("protocol", DEFAULT_PROTOCOL)
+    sub_slug = (link.get("sub_token") or "").strip() or uid
+    return {
+        "uuid": uid,
+        "label": link.get("label", "Config"),
+        "note": link.get("note", ""),
+        "active": link.get("active", True),
+        "expired": is_link_expired(link),
+        "allowed": is_link_allowed(link),
+        "protocol": proto,
+        "used_bytes": link.get("used_bytes", 0),
+        "used_fmt": fmt_bytes(link.get("used_bytes", 0)),
+        "limit_bytes": link.get("limit_bytes", 0),
+        "limit_fmt": "∞" if link.get("limit_bytes", 0) == 0 else fmt_bytes(link["limit_bytes"]),
+        "expires_at": link.get("expires_at"),
+        "vless_link": vless_link_for_link(link, uid, host),
+        "sub_url": f"https://{host}/sub/{sub_slug}",
+        "sub_token": link.get("sub_token", ""),
+        "connections": sum(1 for c in connections.values() if c.get("uuid") == uid),
+        "ip_limit": link.get("ip_limit", 0),
+        "speed_limit_bytes": link.get("speed_limit_bytes", 0),
+        "port": link.get("port", DEFAULT_PORT),
+        "fingerprint": link.get("fingerprint", DEFAULT_FINGERPRINT),
+    }
+
+
+@app.get("/api/admin/all")
+async def admin_all_data(request: Request, _=Depends(require_auth)):
+    """داده‌ی کل کانفیگ‌ها + گروه‌ها برای صفحه‌ی ادمین."""
+    host = get_host(request)
+    async with LINKS_LOCK:
+        snap_links = dict(LINKS)
+    async with SUBS_LOCK:
+        snap_subs = dict(SUBS)
+
+    # گروه‌بندی
+    groups = []
+    grouped_uids = set()
+    for sid, s in snap_subs.items():
+        link_ids = s.get("link_ids", [])
+        group_links = []
+        for lid in link_ids:
+            link = snap_links.get(lid)
+            if not link:
+                continue
+            group_links.append(_serialize_link_for_admin(link, lid, host))
+            grouped_uids.add(lid)
+        groups.append({
+            "sub_id": sid,
+            "name": s.get("name", ""),
+            "desc": s.get("desc", ""),
+            "has_password": s.get("password_hash") is not None,
+            "public_url": f"https://{host}/p/{s.get('uuid_key','')}",
+            "sub_url": f"https://{host}/sub-group/{s.get('uuid_key','')}",
+            "links": group_links,
+        })
+
+    # کانفیگ‌های بدون گروه
+    ungrouped = []
+    for uid, link in snap_links.items():
+        if uid not in grouped_uids:
+            ungrouped.append(_serialize_link_for_admin(link, uid, host))
+
+    # آمار کلی
+    all_links = list(snap_links.values())
+    total_used = sum(l.get("used_bytes", 0) for l in all_links)
+    active_count = sum(1 for l in all_links if is_link_allowed(l))
+    expired_count = sum(1 for l in all_links if is_link_expired(l))
+    disabled_count = sum(1 for l in all_links if not l.get("active", True))
+
+    return {
+        "total": len(all_links),
+        "active": active_count,
+        "expired": expired_count,
+        "disabled": disabled_count,
+        "total_used_bytes": total_used,
+        "total_used_fmt": fmt_bytes(total_used),
+        "active_connections": len(connections),
+        "groups_count": len(snap_subs),
+        "groups": groups,
+        "ungrouped": ungrouped,
+        "sub_all_url": f"https://{host}/sub-all",
+    }
+
+@app.get("/api/public/one/{uuid}")
+async def public_single_data(uuid: str, request: Request):
+    async with LINKS_LOCK:
+        link = LINKS.get(uuid)
+    if not link:
+        raise HTTPException(status_code=404, detail="not found")
+    host = get_host(request)
+    allowed = is_link_allowed(link)
+    conn_count = sum(1 for c in connections.values() if c.get("uuid") == uuid)
+
+    # شمارش bytes آپلود / دانلود جداگانه از connections
+    up_bytes = 0
+    down_bytes = 0
+    last_online = None
+    for c in connections.values():
+        if c.get("uuid") == uuid:
+            b = int(c.get("bytes", 0) or 0)
+            # تخمین: 30% آپلود، 70% دانلود (چون ما جداگانه ذخیره نمی‌کنیم)
+            up_bytes += int(b * 0.3)
+            down_bytes += int(b * 0.7)
+            ca = c.get("connected_at")
+            if ca and (last_online is None or ca > last_online):
+                last_online = ca
+
+    used = int(link.get("used_bytes", 0) or 0)
+    limit = int(link.get("limit_bytes", 0) or 0)
+    remaining = max(0, limit - used) if limit > 0 else 0
+
+    proto = link.get("protocol", DEFAULT_PROTOCOL)
+    sub_slug = (link.get("sub_token") or "").strip() or uuid
+
+    return {
+        "uuid": uuid,
+        "label": link.get("label", "Config"),
+        "note": link.get("note", ""),
+        "active": allowed,
+        "expired": is_link_expired(link),
+        "protocol": proto,
+        "used_bytes": used,
+        "used_fmt": fmt_bytes(used),
+        "limit_bytes": limit,
+        "limit_fmt": "∞" if limit == 0 else fmt_bytes(limit),
+        "remaining_bytes": remaining,
+        "remaining_fmt": "∞" if limit == 0 else fmt_bytes(remaining),
+        "up_bytes": up_bytes,
+        "up_fmt": fmt_bytes(up_bytes),
+        "down_bytes": down_bytes,
+        "down_fmt": fmt_bytes(down_bytes),
+        "expires_at": link.get("expires_at"),
+        "last_online": last_online,
+        "vless_link": vless_link_for_link(link, uuid, host),
+        "sub_url": f"https://{host}/sub/{sub_slug}",
+        "connections": conn_count,
+        "ip_limit": link.get("ip_limit", 0),
+        "speed_limit_bytes": link.get("speed_limit_bytes", 0),
     }
 
 # ── HTML Pages (login + dashboard) ───────────────────────────────────────────

@@ -21,6 +21,7 @@ from main import (
     get_host,
     fmt_bytes,
     is_link_allowed,
+    is_link_expired,
     logger,
     PROTOCOLS,
     DEFAULT_PROTOCOL,
@@ -37,6 +38,12 @@ from main import (
     create_sub_group,
     set_link_sub,
     remove_sub_group,
+    connections,
+    stats,
+    uptime,
+    activity_logs,
+    update_link_field,
+    reset_link_usage,
 )
 
 # ── Config از main.TELEGRAM خونده می‌شه (نه فقط env) ─────────────
@@ -183,9 +190,12 @@ def _is_admin(chat_id: int) -> bool:
 # ── Keyboards ────────────────────────────────────────────────────────────────
 def _main_menu_kb():
     return {"inline_keyboard": [
-        [{"text": "📋 لیست کانفیگ‌ها", "callback_data": "list:0"}],
-        [{"text": "➕ ساخت کانفیگ جدید", "callback_data": "newcfg"}],
-        [{"text": "🗂 گروه‌های ساب (لینک حرفه‌ای)", "callback_data": "subs:0"}],
+        [{"text": "📋 لیست کانفیگ‌ها", "callback_data": "list:0"},
+         {"text": "➕ ساخت کانفیگ جدید", "callback_data": "newcfg"}],
+        [{"text": "🗂 گروه‌های ساب", "callback_data": "subs:0"}],
+        [{"text": "📊 آمار سیستم", "callback_data": "stats"},
+         {"text": "🔌 اتصالات زنده", "callback_data": "conns"}],
+        [{"text": "📋 لاگ فعالیت‌ها", "callback_data": "logs"}],
         [{"text": "🔄 رفرش", "callback_data": "menu"}],
     ]}
 
@@ -212,7 +222,10 @@ def _links_list_kb(page: int):
 def _link_detail_kb(uid: str, active: bool):
     return {"inline_keyboard": [
         [{"text": "🔗 نمایش لینک اتصال", "callback_data": f"link:{uid}"}],
-        [{"text": "🗂 گروه ساب (لینک حرفه‌ای)", "callback_data": f"cfggroup:{uid}"}],
+        [{"text": "📷 QR Code", "callback_data": f"qr:{uid}"}],
+        [{"text": "✏️ ویرایش کانفیگ", "callback_data": f"edit:{uid}"}],
+        [{"text": "🔄 ریست مصرف", "callback_data": f"reset:{uid}"}],
+        [{"text": "🗂 گروه ساب", "callback_data": f"cfggroup:{uid}"}],
         [{"text": ("⛔ غیرفعال‌سازی" if active else "✅ فعال‌سازی"), "callback_data": f"toggle:{uid}"}],
         [{"text": "🗑 حذف کانفیگ", "callback_data": f"del:{uid}"}],
         [{"text": "⬅ بازگشت به لیست", "callback_data": "list:0"}],
@@ -222,6 +235,81 @@ def _confirm_delete_kb(uid: str):
     return {"inline_keyboard": [
         [{"text": "✅ بله، حذف کن", "callback_data": f"delok:{uid}"},
          {"text": "❌ انصراف", "callback_data": f"view:{uid}"}],
+    ]}
+
+# ── Edit menu keyboards ─────────────────────────────────────────────────────
+def _edit_menu_kb(uid: str):
+    return {"inline_keyboard": [
+        [{"text": "🏷 نام", "callback_data": f"e:label:{uid}"},
+         {"text": "📦 سهمیه", "callback_data": f"e:quota:{uid}"}],
+        [{"text": "📅 انقضا", "callback_data": f"e:expiry:{uid}"},
+         {"text": "🚀 سرعت", "callback_data": f"e:speed:{uid}"}],
+        [{"text": "👥 محدودیت آی‌پی", "callback_data": f"e:iplimit:{uid}"}],
+        [{"text": "⬅ بازگشت", "callback_data": f"view:{uid}"}],
+    ]}
+
+def _quota_presets_kb(uid: str):
+    return {"inline_keyboard": [
+        [{"text":"500 MB","callback_data":f"eq:500mb:{uid}"},
+         {"text":"1 GB","callback_data":f"eq:1gb:{uid}"},
+         {"text":"5 GB","callback_data":f"eq:5gb:{uid}"}],
+        [{"text":"10 GB","callback_data":f"eq:10gb:{uid}"},
+         {"text":"50 GB","callback_data":f"eq:50gb:{uid}"},
+         {"text":"100 GB","callback_data":f"eq:100gb:{uid}"}],
+        [{"text":"♾ نامحدود","callback_data":f"eq:0:{uid}"}],
+        [{"text":"✏️ مقدار دلخواه","callback_data":f"e:quota_custom:{uid}"}],
+        [{"text":"⬅ بازگشت","callback_data":f"edit:{uid}"}],
+    ]}
+
+def _expiry_presets_kb(uid: str):
+    return {"inline_keyboard": [
+        [{"text":"۷ روز","callback_data":f"ex:7:{uid}"},
+         {"text":"۳۰ روز","callback_data":f"ex:30:{uid}"},
+         {"text":"۹۰ روز","callback_data":f"ex:90:{uid}"}],
+        [{"text":"۱ روز","callback_data":f"ex:1:{uid}"},
+         {"text":"۱۸۰ روز","callback_data":f"ex:180:{uid}"},
+         {"text":"۳۶۵ روز","callback_data":f"ex:365:{uid}"}],
+        [{"text":"♾ بدون انقضا","callback_data":f"ex:0:{uid}"}],
+        [{"text":"➕ افزودن روز (تمدید)","callback_data":f"e:expiry_add:{uid}"}],
+        [{"text":"✏️ مقدار دلخواه (روز)","callback_data":f"e:expiry_custom:{uid}"}],
+        [{"text":"⬅ بازگشت","callback_data":f"edit:{uid}"}],
+    ]}
+
+def _speed_presets_kb(uid: str):
+    return {"inline_keyboard": [
+        [{"text":"۱ Mbps","callback_data":f"es:1:{uid}"},
+         {"text":"۵ Mbps","callback_data":f"es:5:{uid}"},
+         {"text":"۱۰ Mbps","callback_data":f"es:10:{uid}"}],
+        [{"text":"۲۰ Mbps","callback_data":f"es:20:{uid}"},
+         {"text":"۵۰ Mbps","callback_data":f"es:50:{uid}"},
+         {"text":"۱۰۰ Mbps","callback_data":f"es:100:{uid}"}],
+        [{"text":"♾ نامحدود","callback_data":f"es:0:{uid}"}],
+        [{"text":"✏️ مقدار دلخواه (Mbps)","callback_data":f"e:speed_custom:{uid}"}],
+        [{"text":"⬅ بازگشت","callback_data":f"edit:{uid}"}],
+    ]}
+
+def _iplimit_presets_kb(uid: str):
+    return {"inline_keyboard": [
+        [{"text":"۱","callback_data":f"ei:1:{uid}"},
+         {"text":"۲","callback_data":f"ei:2:{uid}"},
+         {"text":"۳","callback_data":f"ei:3:{uid}"},
+         {"text":"۵","callback_data":f"ei:5:{uid}"}],
+        [{"text":"۱۰","callback_data":f"ei:10:{uid}"},
+         {"text":"۲۰","callback_data":f"ei:20:{uid}"}],
+        [{"text":"♾ نامحدود","callback_data":f"ei:0:{uid}"}],
+        [{"text":"✏️ مقدار دلخواه","callback_data":f"e:iplimit_custom:{uid}"}],
+        [{"text":"⬅ بازگشت","callback_data":f"edit:{uid}"}],
+    ]}
+
+def _edit_cancel_kb(uid: str):
+    return {"inline_keyboard": [
+        [{"text":"❌ انصراف","callback_data":f"edit:{uid}"}],
+    ]}
+
+def _confirm_reset_kb(uid: str):
+    return {"inline_keyboard": [
+        [{"text":"✅ بله، ریست کن","callback_data":f"resetok:{uid}"},
+         {"text":"❌ انصراف","callback_data":f"view:{uid}"}],
     ]}
 
 # ── Wizard keyboards ─────────────────────────────────────────────────────────
@@ -459,6 +547,78 @@ async def _handle_message(msg: dict):
         return
 
     pending = _pending.get(chat_id)
+
+    # ── ویرایش فیلد با متن (label / quota / expiry / speed / iplimit) ──
+    if pending and pending.get("action") == "edit_text" and text:
+        uid = pending.get("uid")
+        field = pending.get("field")
+        link = LINKS.get(uid)
+        if not link:
+            _pending.pop(chat_id, None)
+            await _send(chat_id, "این کانفیگ دیگه وجود نداره.", _main_menu_kb())
+            return
+        try:
+            if field == "label":
+                new_val = text.strip()[:60] or link.get("label", "کانفیگ")
+                updated = await update_link_field(uid, "label", new_val)
+            elif field == "quota_custom":
+                parsed = _parse_volume_text(text)
+                if parsed is None:
+                    await _send(chat_id, "❗️ فرمت درست نیست. مثلاً بفرست: <code>10GB</code> یا <code>500MB</code>", _edit_cancel_kb(uid))
+                    return
+                updated = await update_link_field(uid, "limit_bytes", parsed)
+            elif field == "expiry_custom":
+                n = _parse_nonneg_int(text)
+                if n is None:
+                    await _send(chat_id, "❗️ یه عدد صحیح بفرست (تعداد روز):", _edit_cancel_kb(uid))
+                    return
+                if n == 0:
+                    updated = await update_link_field(uid, "expires_at", None)
+                else:
+                    exp_iso = (datetime.now() + timedelta(days=n)).isoformat()
+                    updated = await update_link_field(uid, "expires_at", exp_iso)
+            elif field == "expiry_add":
+                n = _parse_nonneg_int(text)
+                if n is None or n <= 0:
+                    await _send(chat_id, "❗️ یه عدد صحیح مثبت بفرست (تعداد روز برای تمدید):", _edit_cancel_kb(uid))
+                    return
+                # تمدید: از الان یا از انقضای فعلی (هرکدوم بزرگ‌تر)
+                cur_exp = link.get("expires_at")
+                base = datetime.now()
+                if cur_exp:
+                    try:
+                        cur_dt = datetime.fromisoformat(cur_exp)
+                        if cur_dt > base:
+                            base = cur_dt
+                    except Exception:
+                        pass
+                new_exp = (base + timedelta(days=n)).isoformat()
+                updated = await update_link_field(uid, "expires_at", new_exp)
+            elif field == "speed_custom":
+                parsed = _parse_speed_text(text)
+                if parsed is None:
+                    await _send(chat_id, "❗️ یه عدد بفرست، مثلاً <code>20</code> (Mbps)", _edit_cancel_kb(uid))
+                    return
+                updated = await update_link_field(uid, "speed_limit_bytes", parsed)
+            elif field == "iplimit_custom":
+                n = _parse_nonneg_int(text)
+                if n is None:
+                    await _send(chat_id, "❗️ یه عدد صحیح بفرست:", _edit_cancel_kb(uid))
+                    return
+                updated = await update_link_field(uid, "ip_limit", n)
+            else:
+                _pending.pop(chat_id, None)
+                await _send(chat_id, "فیلد ناشناخته.", _main_menu_kb())
+                return
+        except Exception as e:
+            logger.warning(f"edit_text error: {e}")
+            _pending.pop(chat_id, None)
+            await _send(chat_id, f"❌ خطا در ویرایش: {e}", _main_menu_kb())
+            return
+
+        _pending.pop(chat_id, None)
+        await _send(chat_id, f"✅ تغییر اعمال شد.\n\n{_format_detail(uid, updated)}", _link_detail_kb(uid, updated["active"]))
+        return
 
     if pending and pending.get("action") == "newsub" and pending.get("step") == "name" and text:
         name = text[:60]
@@ -784,6 +944,298 @@ async def _handle_callback(cb: dict):
         # هیچ‌کدوم از حالت‌های بالا مچ نشد (مثلاً روی دکمه‌ی مرحله‌ی قبلی که دیگه معتبر نیست زده)
         await _answer_cb(cb_id, "این دکمه دیگه معتبر نیست.")
         return
+    # ══ ویرایش کانفیگ ══════════════════════════════════════════════════════════
+    if data.startswith("edit:"):
+        uid = data.split(":", 1)[1]
+        l = LINKS.get(uid)
+        if not l:
+            await _edit(chat_id, message_id, "این کانفیگ دیگه وجود نداره.", _main_menu_kb())
+            return
+        _pending.pop(chat_id, None)  # ← این خط رو اضافه کن
+        await _edit(chat_id, message_id, f"✏️ ویرایش کانفیگ «{l.get('label','?')}»\n\nکدوم فیلد رو می‌خوای تغییر بدی؟", _edit_menu_kb(uid))
+        return
+
+    # ── تغییر نام ──
+    if data.startswith("e:label:"):
+        uid = data.split(":", 2)[2]
+        if uid not in LINKS:
+            await _edit(chat_id, message_id, "این کانفیگ دیگه وجود نداره.", _main_menu_kb())
+            return
+        _pending[chat_id] = {"action": "edit_text", "uid": uid, "field": "label"}
+        await _edit(chat_id, message_id, f"🏷 نام فعلی: <b>{LINKS[uid].get('label','?')}</b>\n\nنام جدید رو بفرست:", _edit_cancel_kb(uid))
+        return
+
+    # ── تغییر سهمیه ──
+    if data.startswith("e:quota:"):
+        uid = data.split(":", 2)[2]
+        if uid not in LINKS:
+            await _edit(chat_id, message_id, "این کانفیگ دیگه وجود نداره.", _main_menu_kb())
+            return
+        cur = LINKS[uid].get("limit_bytes", 0)
+        cur_txt = "نامحدود" if not cur else fmt_bytes(cur)
+        await _edit(chat_id, message_id, f"📦 سهمیه فعلی: <b>{cur_txt}</b>\n\nمقدار جدید رو انتخاب کن یا دستی بفرست:", _quota_presets_kb(uid))
+        return
+
+    if data.startswith("eq:"):
+        parts = data.split(":", 2)
+        preset = parts[1]; uid = parts[2]
+        if uid not in LINKS:
+            await _edit(chat_id, message_id, "این کانفیگ دیگه وجود نداره.", _main_menu_kb())
+            return
+        MAP = {"0": 0, "500mb": 500*1024**2, "1gb": 1*1024**3, "5gb": 5*1024**3,
+               "10gb": 10*1024**3, "50gb": 50*1024**3, "100gb": 100*1024**3}
+        bytes_val = MAP.get(preset, 0)
+        updated = await update_link_field(uid, "limit_bytes", bytes_val)
+        await _edit(chat_id, message_id, f"✅ سهمیه تغییر کرد.\n\n{_format_detail(uid, updated)}", _link_detail_kb(uid, updated["active"]))
+        return
+
+    if data.startswith("e:quota_custom:"):
+        uid = data.split(":", 2)[2]
+        if uid not in LINKS:
+            await _edit(chat_id, message_id, "این کانفیگ دیگه وجود نداره.", _main_menu_kb())
+            return
+        _pending[chat_id] = {"action": "edit_text", "uid": uid, "field": "quota_custom"}
+        await _edit(chat_id, message_id, "📦 مقدار جدید رو بفرست، مثلاً <code>10GB</code> یا <code>500MB</code>\nبرای نامحدود کردن، <code>0</code> بفرست:", _edit_cancel_kb(uid))
+        return
+
+    # ── تغییر انقضا ──
+    if data.startswith("e:expiry:"):
+        uid = data.split(":", 2)[2]
+        if uid not in LINKS:
+            await _edit(chat_id, message_id, "این کانفیگ دیگه وجود نداره.", _main_menu_kb())
+            return
+        exp = LINKS[uid].get("expires_at")
+        if exp:
+            try:
+                dl = max(0, int((datetime.fromisoformat(exp) - datetime.now()).total_seconds() // 86400))
+                cur_txt = f"{exp.split('T')[0]} ({dl} روز مونده)"
+            except Exception:
+                cur_txt = exp
+        else:
+            cur_txt = "بدون انقضا"
+        await _edit(chat_id, message_id, f"📅 انقضای فعلی: <b>{cur_txt}</b>\n\nگزینه‌ی جدید رو انتخاب کن:", _expiry_presets_kb(uid))
+        return
+
+    if data.startswith("ex:"):
+        parts = data.split(":", 2)
+        days = int(parts[1]); uid = parts[2]
+        if uid not in LINKS:
+            await _edit(chat_id, message_id, "این کانفیگ دیگه وجود نداره.", _main_menu_kb())
+            return
+        if days == 0:
+            updated = await update_link_field(uid, "expires_at", None)
+        else:
+            new_exp = (datetime.now() + timedelta(days=days)).isoformat()
+            updated = await update_link_field(uid, "expires_at", new_exp)
+        await _edit(chat_id, message_id, f"✅ انقضا تغییر کرد.\n\n{_format_detail(uid, updated)}", _link_detail_kb(uid, updated["active"]))
+        return
+
+    if data.startswith("e:expiry_add:"):
+        uid = data.split(":", 2)[2]
+        if uid not in LINKS:
+            await _edit(chat_id, message_id, "این کانفیگ دیگه وجود نداره.", _main_menu_kb())
+            return
+        _pending[chat_id] = {"action": "edit_text", "uid": uid, "field": "expiry_add"}
+        await _edit(chat_id, message_id, "➕ چند روز به انقضا اضافه بشه؟\n(اگه هنوز منقضی نشده، از تاریخ فعلی؛ اگه منقضی شده، از الان حساب می‌شه)", _edit_cancel_kb(uid))
+        return
+
+    if data.startswith("e:expiry_custom:"):
+        uid = data.split(":", 2)[2]
+        if uid not in LINKS:
+            await _edit(chat_id, message_id, "این کانفیگ دیگه وجود نداره.", _main_menu_kb())
+            return
+        _pending[chat_id] = {"action": "edit_text", "uid": uid, "field": "expiry_custom"}
+        await _edit(chat_id, message_id, "📅 تعداد روز از الان رو بفرست (0 = بدون انقضا):", _edit_cancel_kb(uid))
+        return
+
+    # ── تغییر سرعت ──
+    if data.startswith("e:speed:"):
+        uid = data.split(":", 2)[2]
+        if uid not in LINKS:
+            await _edit(chat_id, message_id, "این کانفیگ دیگه وجود نداره.", _main_menu_kb())
+            return
+        sp = LINKS[uid].get("speed_limit_bytes", 0)
+        cur_txt = "نامحدود" if not sp else f"{sp*8/1024/1024:.1f} Mbps"
+        await _edit(chat_id, message_id, f"🚀 محدودیت سرعت فعلی: <b>{cur_txt}</b>\n\nگزینه‌ی جدید:", _speed_presets_kb(uid))
+        return
+
+    if data.startswith("es:"):
+        parts = data.split(":", 2)
+        mbps = int(parts[1]); uid = parts[2]
+        if uid not in LINKS:
+            await _edit(chat_id, message_id, "این کانفیگ دیگه وجود نداره.", _main_menu_kb())
+            return
+        bytes_val = 0 if mbps == 0 else int(mbps * 1024 * 1024 / 8)
+        updated = await update_link_field(uid, "speed_limit_bytes", bytes_val)
+        # ریست bucket برای اعمال فوری
+        try:
+            from speed_limit import reset_bucket
+            reset_bucket(uid)
+        except Exception:
+            pass
+        await _edit(chat_id, message_id, f"✅ محدودیت سرعت تغییر کرد.\n\n{_format_detail(uid, updated)}", _link_detail_kb(uid, updated["active"]))
+        return
+
+    if data.startswith("e:speed_custom:"):
+        uid = data.split(":", 2)[2]
+        if uid not in LINKS:
+            await _edit(chat_id, message_id, "این کانفیگ دیگه وجود نداره.", _main_menu_kb())
+            return
+        _pending[chat_id] = {"action": "edit_text", "uid": uid, "field": "speed_custom"}
+        await _edit(chat_id, message_id, "🚀 محدودیت سرعت جدید رو به Mbps بفرست (0 = نامحدود):", _edit_cancel_kb(uid))
+        return
+
+    # ── تغییر محدودیت آی‌پی ──
+    if data.startswith("e:iplimit:"):
+        uid = data.split(":", 2)[2]
+        if uid not in LINKS:
+            await _edit(chat_id, message_id, "این کانفیگ دیگه وجود نداره.", _main_menu_kb())
+            return
+        cur = LINKS[uid].get("ip_limit", 0)
+        cur_txt = "نامحدود" if not cur else str(cur)
+        await _edit(chat_id, message_id, f"👥 محدودیت آی‌پی فعلی: <b>{cur_txt}</b>\n\nمقدار جدید:", _iplimit_presets_kb(uid))
+        return
+
+    if data.startswith("ei:"):
+        parts = data.split(":", 2)
+        n = int(parts[1]); uid = parts[2]
+        if uid not in LINKS:
+            await _edit(chat_id, message_id, "این کانفیگ دیگه وجود نداره.", _main_menu_kb())
+            return
+        updated = await update_link_field(uid, "ip_limit", n)
+        await _edit(chat_id, message_id, f"✅ محدودیت آی‌پی تغییر کرد.\n\n{_format_detail(uid, updated)}", _link_detail_kb(uid, updated["active"]))
+        return
+
+    if data.startswith("e:iplimit_custom:"):
+        uid = data.split(":", 2)[2]
+        if uid not in LINKS:
+            await _edit(chat_id, message_id, "این کانفیگ دیگه وجود نداره.", _main_menu_kb())
+            return
+        _pending[chat_id] = {"action": "edit_text", "uid": uid, "field": "iplimit_custom"}
+        await _edit(chat_id, message_id, "👥 حداکثر تعداد آی‌پی هم‌زمان رو بفرست (0 = نامحدود):", _edit_cancel_kb(uid))
+        return
+
+    # ══ ریست مصرف ═════════════════════════════════════════════════════════════
+    if data.startswith("reset:"):
+        uid = data.split(":", 1)[1]
+        l = LINKS.get(uid)
+        if not l:
+            await _edit(chat_id, message_id, "این کانفیگ دیگه وجود نداره.", _main_menu_kb())
+            return
+        cur_txt = fmt_bytes(l.get("used_bytes", 0))
+        await _edit(chat_id, message_id, f"🔄 مصرف فعلی «{l.get('label','?')}»: <b>{cur_txt}</b>\n\nمطمئنی می‌خوای ریست کنی؟", _confirm_reset_kb(uid))
+        return
+
+    if data.startswith("resetok:"):
+        uid = data.split(":", 1)[1]
+        updated = await reset_link_usage(uid)
+        if not updated:
+            await _edit(chat_id, message_id, "این کانفیگ دیگه وجود نداره.", _main_menu_kb())
+            return
+        await _edit(chat_id, message_id, f"✅ مصرف ریست شد.\n\n{_format_detail(uid, updated)}", _link_detail_kb(uid, updated["active"]))
+        return
+
+    # ══ QR Code به صورت عکس ═════════════════════════════════════════════════════
+    if data.startswith("qr:"):
+        uid = data.split(":", 1)[1]
+        l = LINKS.get(uid)
+        if not l:
+            await _answer_cb(cb_id, "کانفیگ پیدا نشد")
+            return
+        host = get_host()
+        sub_slug = (l.get("sub_token") or "").strip() or uid
+        sub_url = f"https://{host}/sub/{sub_slug}"
+        qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=500x500&data={sub_url}"
+        try:
+            await _call("sendPhoto", chat_id=chat_id, photo=qr_url,
+                        caption=f"📷 QR Code · <b>{l.get('label','?')}</b>\n\nاسکن کن یا از لینک زیر استفاده کن:\n<code>{sub_url}</code>")
+        except Exception as e:
+            await _send(chat_id, f"❌ خطا در ارسال QR: {e}")
+        return
+
+    # ══ داشبورد آمار ════════════════════════════════════════════════════════════
+    if data == "stats":
+        total_used = sum(l.get("used_bytes", 0) for l in LINKS.values())
+        active_cfgs = sum(1 for l in LINKS.values() if is_link_allowed(l))
+        expired_cfgs = sum(1 for l in LINKS.values() if is_link_expired(l))
+        disabled = sum(1 for l in LINKS.values() if not l.get("active", True))
+        total_traffic = stats.get("total_bytes", 0)
+        txt = (
+            "📊 <b>آمار سیستم</b>\n\n"
+            f"🔌 اتصالات فعال: <b>{len(connections)}</b>\n"
+            f"📡 کل ترافیک عبوری: <b>{fmt_bytes(total_traffic)}</b>\n"
+            f"📦 مجموع مصرف کانفیگ‌ها: <b>{fmt_bytes(total_used)}</b>\n\n"
+            f"🗂 کل کانفیگ‌ها: <b>{len(LINKS)}</b>\n"
+            f"✅ فعال: <b>{active_cfgs}</b>\n"
+            f"⏰ منقضی: <b>{expired_cfgs}</b>\n"
+            f"❌ غیرفعال: <b>{disabled}</b>\n\n"
+            f"👥 گروه‌های ساب: <b>{len(SUBS)}</b>\n"
+            f"⏱ آپتایم: <b>{uptime()}</b>\n"
+            f"📅 زمان: <b>{datetime.now().strftime('%Y-%m-%d %H:%M')}</b>"
+        )
+        kb = {"inline_keyboard": [
+            [{"text":"🔄 بروزرسانی","callback_data":"stats"}],
+            [{"text":"⬅ منوی اصلی","callback_data":"menu"}],
+        ]}
+        await _edit(chat_id, message_id, txt, kb)
+        return
+
+    # ══ اتصالات زنده ═══════════════════════════════════════════════════════════
+    if data == "conns":
+        if not connections:
+            await _edit(chat_id, message_id, "🔌 <b>اتصالات زنده</b>\n\nهیچ اتصالی در این لحظه فعال نیست.", {"inline_keyboard": [
+                [{"text":"🔄 بروزرسانی","callback_data":"conns"}],
+                [{"text":"⬅ منوی اصلی","callback_data":"menu"}],
+            ]})
+            return
+
+        # گروه‌بندی بر اساس IP
+        grouped = {}
+        for c in connections.values():
+            ip = c.get("ip", "نامشخص")
+            g = grouped.setdefault(ip, {"bytes": 0, "sessions": 0, "labels": set()})
+            g["bytes"] += c.get("bytes", 0)
+            g["sessions"] += 1
+            link = LINKS.get(c.get("uuid"))
+            if link:
+                g["labels"].add(link.get("label", "?"))
+
+        lines = [f"🔌 <b>اتصالات زنده</b> ({len(grouped)} آی‌پی)\n"]
+        for ip, g in sorted(grouped.items(), key=lambda x: -x[1]["bytes"])[:15]:
+            labels_txt = " · ".join(list(g["labels"])[:2]) or "?"
+            lines.append(f"• <code>{ip}</code>\n  {labels_txt} · {fmt_bytes(g['bytes'])} · {g['sessions']} سشن")
+        if len(grouped) > 15:
+            lines.append(f"\n<i>... و {len(grouped)-15} آی‌پی دیگه</i>")
+
+        kb = {"inline_keyboard": [
+            [{"text":"🔄 بروزرسانی","callback_data":"conns"}],
+            [{"text":"⬅ منوی اصلی","callback_data":"menu"}],
+        ]}
+        await _edit(chat_id, message_id, "\n".join(lines), kb)
+        return
+
+    # ══ لاگ فعالیت‌ها ═══════════════════════════════════════════════════════════
+    if data == "logs":
+        recent = list(activity_logs)[-15:][::-1]
+        if not recent:
+            await _edit(chat_id, message_id, "📋 <b>لاگ فعالیت‌ها</b>\n\nهنوز رخدادی ثبت نشده.", {"inline_keyboard": [
+                [{"text":"🔄 بروزرسانی","callback_data":"logs"}],
+                [{"text":"⬅ منوی اصلی","callback_data":"menu"}],
+            ]})
+            return
+        icons = {"ok": "✅", "err": "❌", "warn": "⚠️", "info": "ℹ️"}
+        lines = ["📋 <b>آخرین رخدادها:</b>\n"]
+        for log in recent:
+            t = log.get("time", "")[11:16]  # HH:MM
+            lvl = log.get("level", "info")
+            msg = log.get("message", "")
+            lines.append(f"{icons.get(lvl,'•')} <code>{t}</code> {msg}")
+        kb = {"inline_keyboard": [
+            [{"text":"🔄 بروزرسانی","callback_data":"logs"}],
+            [{"text":"⬅ منوی اصلی","callback_data":"menu"}],
+        ]}
+        await _edit(chat_id, message_id, "\n".join(lines), kb)
+        return
 
     if data.startswith("view:"):
         uid = data.split(":", 1)[1]
@@ -810,8 +1262,9 @@ async def _handle_callback(cb: dict):
             await _answer_cb(cb_id, "کانفیگ پیدا نشد")
             return
         host = get_host()
+        sub_slug = (l.get("sub_token") or "").strip() or uid
         vless = vless_link_for_link(l, uid, host)
-        sub_url = f"https://{host}/sub/{uid}"
+        sub_url = f"https://{host}/sub/{sub_slug}"
         msg = f"🔗 لینک اتصال «{l.get('label')}»:\n\n<code>{vless}</code>\n\nلینک ساب ساده (فقط متن کانفیگ):\n<code>{sub_url}</code>"
         sid = l.get("sub_id")
         if sid and sid in SUBS:
