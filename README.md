@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/omidiran-gaming/omidiran/main/docs/logo.png" width="120" alt="OMID-IRAN PANEL">
+<img src="https://raw.githubusercontent.com/omidiran-gaming/omidiran/main/Docs/logo.png" width="120" alt="OMID-IRAN PANEL">
 
 # 🚀 OMID-IRAN PANEL
 
