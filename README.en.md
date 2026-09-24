@@ -13,7 +13,7 @@
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 [![Telegram](https://img.shields.io/badge/Telegram-@omid__gamingORG-26A5E4?logo=telegram&logoColor=white)](https://t.me/omid_gamingORG)
 
-[🇮🇷 فارسی](README.md) · [English](README.en_US.md) · [📦 Docker](https://github.com/omidiran-gaming/omidiran/pkgs/container/omidiran) · [💬 Support](https://t.me/omid_gamingORG)
+[🇮🇷 فارسی](README.md) · [English](README.en.md) · [📦 Docker](https://github.com/omidiran-gaming/omidiran/pkgs/container/omidiran) · [💬 Support](https://t.me/omid_gamingORG)
 
 </div>
 
