@@ -17,15 +17,6 @@
 
 </div>
 
----
-
-## 📸 نمای کلی · Preview
-
-<p align="center">
-  <img src="https://raw.githubusercontent.com/omidiran-gaming/omidiran/main/docs/preview-dark.png" width="48%" alt="Dark Theme">
-  <img src="https://raw.githubusercontent.com/omidiran-gaming/omidiran/main/docs/preview-light.png" width="48%" alt="Light Theme">
-</p>
-
 <p align="center">
   <img src="https://raw.githubusercontent.com/omidiran-gaming/omidiran/main/docs/preview-mobile.png" width="30%" alt="Mobile">
   <img src="https://raw.githubusercontent.com/omidiran-gaming/omidiran/main/docs/preview-configs.png" width="30%" alt="Configs">
