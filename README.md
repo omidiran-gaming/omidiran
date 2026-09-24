@@ -248,7 +248,7 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ### 💬 پشتیبانی
 
 - 📢 **کانال تلگرام:** [@omid_gamingORG](https://t.me/omid_gamingORG)
-- 💬 **پشتیبانی:** [@omid_gamingORG](https://t.me/omid_gamingORG)
+- 💬 **پشتیبانی:** [@iran5090](https://t.me/iran5090)
 - 🐛 **گزارش باگ:** [GitHub Issues](https://github.com/omidiran-gaming/omidiran/issues)
 
 ---
