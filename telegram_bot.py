@@ -129,6 +129,7 @@ _client: httpx.AsyncClient | None = None
 _poll_task: asyncio.Task | None = None
 _notify_task: asyncio.Task | None = None
 _report_task: asyncio.Task | None = None
+_traffic_task: asyncio.Task | None = None
 _running = False
 _pending: dict = {}          # chat_id -> wizard/edit state
 _notified: dict = {}         # uid -> {"expiry": unix_ts, "quota": unix_ts}
@@ -144,6 +145,16 @@ _LANG_FILE = _DATA_DIR / "telegram_languages.json"
 _user_languages: dict[int, str] = {}
 _lang_lock = asyncio.Lock()
 _callback_chats: dict[str, int] = {}
+
+# Persistent traffic history for the Telegram chart.
+# main.hourly_traffic is kept in-memory and uses only HH:00 keys, so it disappears
+# on restart and cannot distinguish the same hour across different days.
+_TRAFFIC_HISTORY_FILE = _DATA_DIR / "telegram_traffic_history.json"
+_TRAFFIC_HISTORY: dict[str, int] = {}  # YYYY-MM-DD HH:00 -> bytes
+_TRAFFIC_LAST_TOTAL: int | None = None
+_TRAFFIC_LOCK = asyncio.Lock()
+_TRAFFIC_SAMPLE_INTERVAL = 15
+_TRAFFIC_RETENTION_HOURS = 72
 
 # Persian -> English map. Persian remains the canonical text in this legacy
 # source file; outbound messages/keyboards are translated at the last mile.
@@ -567,6 +578,122 @@ def _language_choice_kb(back_to_menu: bool = False):
 
 def _language_choice_text():
     return "🌐 <b>Choose your language</b>\n\nSelect the language for this bot:"
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  PERSISTENT TRAFFIC HISTORY
+# ═══════════════════════════════════════════════════════════════════════════
+def _traffic_hour_key(dt: datetime | None = None) -> str:
+    dt = dt or datetime.now()
+    return dt.strftime("%Y-%m-%d %H:00")
+
+
+def _traffic_prune_unlocked() -> None:
+    cutoff = datetime.now() - timedelta(hours=_TRAFFIC_RETENTION_HOURS)
+    keep = {}
+    for key, value in _TRAFFIC_HISTORY.items():
+        try:
+            dt = datetime.strptime(key, "%Y-%m-%d %H:%M")
+        except ValueError:
+            continue
+        if dt >= cutoff:
+            keep[key] = max(0, int(value or 0))
+    _TRAFFIC_HISTORY.clear()
+    _TRAFFIC_HISTORY.update(keep)
+
+
+async def _load_traffic_history() -> None:
+    global _TRAFFIC_LAST_TOTAL
+    try:
+        _DATA_DIR.mkdir(parents=True, exist_ok=True)
+        if _TRAFFIC_HISTORY_FILE.exists():
+            raw = json.loads(_TRAFFIC_HISTORY_FILE.read_text(encoding="utf-8"))
+            if isinstance(raw, dict):
+                source = raw.get("hours", raw)
+                if isinstance(source, dict):
+                    async with _TRAFFIC_LOCK:
+                        _TRAFFIC_HISTORY.clear()
+                        for key, value in source.items():
+                            try:
+                                _TRAFFIC_HISTORY[str(key)] = max(0, int(value or 0))
+                            except (TypeError, ValueError):
+                                pass
+                        _traffic_prune_unlocked()
+        _TRAFFIC_LAST_TOTAL = int(stats.get("total_bytes", 0) or 0)
+    except Exception as e:
+        logger.warning(f"Telegram traffic history load failed: {e}")
+        _TRAFFIC_LAST_TOTAL = int(stats.get("total_bytes", 0) or 0)
+
+
+async def _save_traffic_history() -> None:
+    try:
+        _DATA_DIR.mkdir(parents=True, exist_ok=True)
+        async with _TRAFFIC_LOCK:
+            _traffic_prune_unlocked()
+            payload = {
+                "version": 1,
+                "hours": dict(sorted(_TRAFFIC_HISTORY.items())),
+                "saved_at": datetime.now().isoformat(),
+            }
+        tmp = _TRAFFIC_HISTORY_FILE.with_suffix(".tmp")
+        tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        tmp.replace(_TRAFFIC_HISTORY_FILE)
+    except Exception as e:
+        logger.warning(f"Telegram traffic history save failed: {e}")
+
+
+async def _traffic_history_loop() -> None:
+    """Persist real relay traffic from main.stats into date-aware hourly buckets."""
+    global _TRAFFIC_LAST_TOTAL
+    while _running:
+        try:
+            current_total = int(stats.get("total_bytes", 0) or 0)
+            hour_key = _traffic_hour_key()
+
+            async with _TRAFFIC_LOCK:
+                # main.hourly_traffic may already contain the current hour.
+                # Seed from it once so starting the bot after traffic has begun
+                # does not show an empty chart.
+                source_current = int(hourly_traffic.get(datetime.now().strftime("%H:00"), 0) or 0)
+                existing = int(_TRAFFIC_HISTORY.get(hour_key, 0) or 0)
+                if source_current > existing:
+                    _TRAFFIC_HISTORY[hour_key] = source_current
+                else:
+                    _TRAFFIC_HISTORY.setdefault(hour_key, existing)
+
+                if _TRAFFIC_LAST_TOTAL is None:
+                    _TRAFFIC_LAST_TOTAL = current_total
+                elif current_total >= _TRAFFIC_LAST_TOTAL:
+                    delta = current_total - _TRAFFIC_LAST_TOTAL
+                    if delta:
+                        _TRAFFIC_HISTORY[hour_key] = int(_TRAFFIC_HISTORY.get(hour_key, 0)) + delta
+                    _TRAFFIC_LAST_TOTAL = current_total
+                else:
+                    # Main process restarted/reset its counter. Do not create
+                    # a huge negative/positive spike; just re-baseline.
+                    _TRAFFIC_LAST_TOTAL = current_total
+
+                _traffic_prune_unlocked()
+
+            await _save_traffic_history()
+            await asyncio.sleep(_TRAFFIC_SAMPLE_INTERVAL)
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            logger.warning(f"traffic history loop error: {e}")
+            await asyncio.sleep(_TRAFFIC_SAMPLE_INTERVAL)
+
+
+def _traffic_chart_points(hours: int = 24) -> tuple[list[str], list[int]]:
+    now = datetime.now().replace(minute=0, second=0, microsecond=0)
+    labels = []
+    values = []
+    for offset in range(hours - 1, -1, -1):
+        dt = now - timedelta(hours=offset)
+        key = dt.strftime("%Y-%m-%d %H:00")
+        labels.append(dt.strftime("%m-%d %H:00"))
+        values.append(int(_TRAFFIC_HISTORY.get(key, 0) or 0))
+    return labels, values
+
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  HELPERS
@@ -1772,10 +1899,30 @@ async def _handle_callback(cb: dict):
 
     # ── نمودار ترافیک ───────────────────────────────────────────────────
     if data == "chart":
-        if not hourly_traffic:
-            await _edit(chat_id, message_id, "📈 داده‌ای برای نمودار نیست.", _main_menu_kb()); return
-        labels = sorted(hourly_traffic.keys())[-24:]
-        values = [round(hourly_traffic.get(h,0) / 1024**2, 2) for h in labels]
+        labels, raw_values = _traffic_chart_points(24)
+
+        if not any(raw_values):
+            # Fallback for an already-running process whose current hour has
+            # traffic but the persistence loop has not sampled yet.
+            current_key = _traffic_hour_key()
+            current_live = int(hourly_traffic.get(datetime.now().strftime("%H:00"), 0) or 0)
+            if current_live > 0:
+                async with _TRAFFIC_LOCK:
+                    _TRAFFIC_HISTORY[current_key] = max(
+                        int(_TRAFFIC_HISTORY.get(current_key, 0) or 0),
+                        current_live,
+                    )
+                await _save_traffic_history()
+                labels, raw_values = _traffic_chart_points(24)
+
+        if not any(raw_values):
+            await _edit(
+                chat_id, message_id,
+                "📈 داده‌ای برای نمودار نیست.",
+                _main_menu_kb(),
+            ); return
+
+        values = [round(v / 1024**2, 2) for v in raw_values]
         cfg = {
             "type":"line",
             "data":{"labels":labels,"datasets":[{
@@ -2650,7 +2797,7 @@ async def _poll_loop():
 #  LIFECYCLE
 # ═══════════════════════════════════════════════════════════════════════════
 async def start_bot():
-    global _client, _poll_task, _notify_task, _report_task, _running, _bot_username
+    global _client, _poll_task, _notify_task, _report_task, _traffic_task, _running, _bot_username
     token = _get_token()
     admins = _get_admin_ids()
     if not token:
@@ -2663,6 +2810,7 @@ async def start_bot():
         await stop_bot()
 
     await _load_languages()
+    await _load_traffic_history()
     _client = httpx.AsyncClient(timeout=httpx.Timeout(40.0, connect=10.0))
 
     # 🌐 pre-fetch server info (برای نمایش توی آمار)
@@ -2712,17 +2860,18 @@ async def start_bot():
     _poll_task = asyncio.create_task(_poll_loop())
     _notify_task = asyncio.create_task(_notification_loop())
     _report_task = asyncio.create_task(_scheduled_report_loop())
+    _traffic_task = asyncio.create_task(_traffic_history_loop())
     logger.info(f"🤖 Telegram bot started (admins: {len(admins)}, bot: @{_bot_username or '?'})")
 
 async def stop_bot():
-    global _running, _client, _poll_task, _notify_task, _report_task
+    global _running, _client, _poll_task, _notify_task, _report_task, _traffic_task
     _running = False
-    for t in (_poll_task, _notify_task, _report_task):
+    for t in (_poll_task, _notify_task, _report_task, _traffic_task):
         if t:
             t.cancel()
             try: await t
             except (asyncio.CancelledError, Exception): pass
-    _poll_task = _notify_task = _report_task = None
+    _poll_task = _notify_task = _report_task = _traffic_task = None
     if _client:
         try: await _client.aclose()
         except Exception: pass
