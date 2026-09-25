@@ -7,6 +7,7 @@
 # ══════════════════════════════════════════════════════════════════════════════
 
 import asyncio
+import hmac
 import secrets
 import socket
 import time
@@ -28,6 +29,25 @@ from main import (
     save_state,
 )
 from relay_vless import parse_vless_header, check_and_use
+from relay_vmess import (
+    _decode_request_header,
+    _check_replay,
+    _build_response_header,
+    _VMessBodyFramer,
+    _BodyDecoder,
+    _BodyEncoder,
+    SEC_AES_GCM, SEC_CHACHA20_POLY1305, SEC_NONE, SEC_ZERO,
+)
+from relay_trojan import (
+    _parse_request_header,
+    _NeedMoreData,
+    _sha224_hex,
+    _create_udp_transports,
+    _resolve_udp_target,
+    _udp_record,
+    _parse_udp_records,
+)
+from main import normalize_protocol, split_protocol
 from speed_limit import throttle
 
 router = APIRouter()
@@ -55,21 +75,27 @@ QUOTA_START_BATCH = 64 * 1024
 QUOTA_CHECK_INTERVAL = 0.2  # سقف زمانی؛ حتی اگر batch پر نشده، بعد این مدت چک کن
 
 PACKET_UP_HIGH_WATER = 2 * 1024 * 1024  # packet-up همون منطق ساده‌ی قبلی رو داره (تمرکز این راند فقط stream-up بود)
+MAX_BUFFERED_POSTS = 30
 
 xhttp_sessions: dict = {}
 XHTTP_LOCK = asyncio.Lock()
 
 FINGERPRINTS = {
+    # XHTTP downlink is an HTTP streaming response; Xray uses SSE-style
+    # headers for the default disguise. The proxy payload itself remains raw.
     "chrome": {
-        "content-type": "application/grpc",
-        "cache-control": "no-cache, no-store",
+        "content-type": "text/event-stream; charset=utf-8",
+        "cache-control": "no-store",
         "x-accel-buffering": "no",
-        "server": "cloudflare",
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "GET, POST",
     },
     "plain": {
         "content-type": "application/octet-stream",
         "cache-control": "no-store",
         "x-accel-buffering": "no",
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "GET, POST",
     },
 }
 DEFAULT_FINGERPRINT = "chrome"
@@ -77,6 +103,7 @@ DEFAULT_FINGERPRINT = "chrome"
 
 def _resp_headers(fp: str) -> dict:
     return dict(FINGERPRINTS.get(fp, FINGERPRINTS[DEFAULT_FINGERPRINT]))
+
 
 
 def _tune_socket(writer: asyncio.StreamWriter):
@@ -178,16 +205,26 @@ def _req_client_ip(request: Request) -> str:
     return request.client.host if request.client else "نامشخص"
 
 
-async def _open_tcp_from_header(first_chunk: bytes):
-    command, address, port, payload = await parse_vless_header(first_chunk)
-    reader, writer = await asyncio.wait_for(
-        asyncio.open_connection(address, port), timeout=TCP_CONNECT_TIMEOUT
-    )
-    _tune_socket(writer)
-    if payload:
-        writer.write(payload)
-        await writer.drain()
-    return reader, writer, address, port
+
+
+MAX_HANDSHAKE_BUFFER = 64 * 1024
+
+
+def _family_for_link(link: dict) -> tuple[str, str]:
+    return split_protocol(normalize_protocol(link.get("protocol")))
+
+
+def _is_incomplete_vless_error(exc: Exception) -> bool:
+    msg = str(exc).lower()
+    return any(k in msg for k in (
+        "chunk too small", "index out of range", "out of range",
+        "truncated", "not enough", "invalid",
+    ))
+
+
+def _vmess_header_incomplete(error: str) -> bool:
+    msg = (error or "").lower()
+    return any(k in msg for k in ("کافی نیست", "ناقص", "truncated", "incomplete"))
 
 
 async def _check_link(uuid: str):
@@ -195,21 +232,33 @@ async def _check_link(uuid: str):
         link = LINKS.get(uuid)
     if not is_link_allowed(link):
         raise HTTPException(status_code=403, detail="not authorized")
+    return link
 
 
 async def _get_or_create_session(uuid: str, mode: str, session_id: str, ip: str = "نامشخص") -> dict:
-    """Session بر اساس session_id که خودِ کلاینت در URL فرستاده، lazily ساخته می‌شه."""
+    """Create an XHTTP session and lock its inner proxy protocol to the link."""
     async with XHTTP_LOCK:
         sess = xhttp_sessions.get(session_id)
         if sess is not None:
+            if sess.get("uuid") != uuid or sess.get("mode") != mode:
+                raise HTTPException(status_code=409, detail="session id already belongs to another connection")
             sess["last_seen"] = time.time()
             return sess
 
         async with LINKS_LOCK:
             link = LINKS.get(uuid)
+        if not is_link_allowed(link):
+            raise HTTPException(status_code=403, detail="not authorized")
         if not is_ip_allowed(link, uuid, ip):
             logger.warning(f"🚫 XHTTP[{mode}] rejected uuid={uuid[:8]} ip={ip} (ip limit reached)")
             raise HTTPException(status_code=403, detail="ip limit reached")
+
+        family, transport = _family_for_link(link)
+        expected_mode = transport if family != "vless" or transport != "ws" else None
+        if expected_mode not in ("packet-up", "stream-up"):
+            raise HTTPException(status_code=404, detail="link is not an XHTTP configuration")
+        if expected_mode != mode:
+            raise HTTPException(status_code=404, detail="XHTTP mode mismatch")
 
         conn_id = secrets.token_urlsafe(6)
         connections[conn_id] = {
@@ -217,20 +266,34 @@ async def _get_or_create_session(uuid: str, mode: str, session_id: str, ip: str 
             "ip": ip,
             "connected_at": datetime.now().isoformat(),
             "bytes": 0,
-            "transport": f"xhttp-{mode}",
+            "transport": f"xhttp-{family}-{mode}",
         }
         sess = {
-            "uuid": uuid, "mode": mode, "writer": None,
-            "downlink_task": None, "uplink_task": None,
+            "uuid": uuid, "mode": mode, "family": family,
+            "session_id": session_id,
+            "writer": None,
+            "reader": None,
+            "downlink_task": None,
+            "uplink_task": None,
+            "udp_task": None,
             "down_q": asyncio.Queue(maxsize=DOWNLINK_QUEUE_MAX),
             "last_seen": time.time(),
-            "conn_id": conn_id, "tcp_open": False, "closed": False,
+            "conn_id": conn_id, "tcp_open": False, "udp_open": False,
+            "transport_open": False, "closed": False,
             "seq_buf": {}, "next_seq": 0,
-            "gate": None,  # لازی ساخته می‌شه: _QuotaGate تطبیقی مخصوص stream-up
-            "flow": None,  # لازی ساخته می‌شه: _AdaptiveFlow مخصوص stream-up
+            "gate": None,
+            "flow": None,
+            "handshake_buffer": bytearray(),
+            "protocol_info": None,
+            "vmess_decoder": None,
+            "vmess_encoder": None,
+            "udp_incoming": None,
+            "udp_transports": None,
+            "udp_dns_cache": {},
+            "udp_buffer": bytearray(),
         }
         xhttp_sessions[session_id] = sess
-        logger.info(f"new XHTTP[{mode}] session [{session_id[:8]}] uuid={uuid[:8]} ip={ip}")
+        logger.info(f"new XHTTP[{family}/{mode}] session [{session_id[:8]}] uuid={uuid[:8]} ip={ip}")
         return sess
 
 
@@ -240,9 +303,9 @@ async def _teardown(session_id: str):
     if not sess:
         return
     sess["closed"] = True
-    for t in ("uplink_task", "downlink_task"):
+    for t in ("uplink_task", "downlink_task", "udp_task"):
         task = sess.get(t)
-        if task:
+        if task and task is not asyncio.current_task():
             task.cancel()
             try:
                 await task
@@ -255,6 +318,14 @@ async def _teardown(session_id: str):
             await writer.wait_closed()
         except Exception:
             pass
+    pair = sess.get("udp_transports")
+    if pair:
+        for tr in (getattr(pair, "ipv4", None), getattr(pair, "ipv6", None)):
+            if tr:
+                try:
+                    tr.close()
+                except Exception:
+                    pass
     connections.pop(sess.get("conn_id"), None)
     dq = sess.get("down_q")
     if dq:
@@ -262,7 +333,7 @@ async def _teardown(session_id: str):
             dq.put_nowait(None)
         except Exception:
             pass
-    logger.info(f"closed XHTTP[{sess.get('mode')}] [{session_id[:8]}] total={len(xhttp_sessions)}")
+    logger.info(f"closed XHTTP[{sess.get('family')}/{sess.get('mode')}] [{session_id[:8]}] total={len(xhttp_sessions)}")
 
 
 async def _reaper():
@@ -270,8 +341,10 @@ async def _reaper():
         await asyncio.sleep(REAPER_INTERVAL)
         now = time.time()
         async with XHTTP_LOCK:
-            stale = [sid for sid, s in xhttp_sessions.items()
-                     if now - s["last_seen"] > SESSION_IDLE_TIMEOUT and not s.get("tcp_open")]
+            stale = [
+                sid for sid, s in xhttp_sessions.items()
+                if now - s["last_seen"] > SESSION_IDLE_TIMEOUT and not s.get("transport_open")
+            ]
         for sid in stale:
             await _teardown(sid)
 
@@ -286,9 +359,203 @@ def ensure_reaper():
         _reaper_started = True
 
 
-async def _pump_tcp_to_queue(session_id: str, uuid: str, reader: asyncio.StreamReader, down_q: asyncio.Queue):
-    first = True
-    gate = _QuotaGate(uuid)  # دانلینک هم از همون گیت batched استفاده می‌کنه
+async def _connect_target(host: str, port: int):
+    reader, writer = await asyncio.wait_for(
+        asyncio.open_connection(host, port), timeout=TCP_CONNECT_TIMEOUT
+    )
+    _tune_socket(writer)
+    return reader, writer
+
+
+async def _authenticate_and_parse_trojan(sess: dict, buffer: bytes):
+    try:
+        req = _parse_request_header(buffer)
+    except _NeedMoreData:
+        return None
+
+    link = LINKS.get(sess["uuid"])
+    password = (link or {}).get("password") or sess["uuid"]
+    expected = _sha224_hex(password) if password else ""
+    if not expected or not hmac.compare_digest(req.password_hash, expected):
+        raise ValueError("Trojan authentication failed")
+    return req
+
+
+async def _try_initialize(sess: dict):
+    """Try to consume the protocol handshake from handshake_buffer.
+    Returns (ready, remainder)."""
+    family = sess["family"]
+    uuid = sess["uuid"]
+    buf = bytes(sess["handshake_buffer"])
+    if not buf:
+        return False, b""
+
+    if len(buf) > MAX_HANDSHAKE_BUFFER:
+        raise ValueError("XHTTP protocol header exceeds safety buffer")
+
+    if family == "vless":
+        try:
+            command, address, port, payload = await parse_vless_header(buf)
+        except Exception as exc:
+            if len(buf) < 64 * 1024 and _is_incomplete_vless_error(exc):
+                return False, b""
+            raise
+        if command != 1:
+            raise ValueError("XHTTP VLESS supports TCP command only")
+        reader, writer = await _connect_target(address, port)
+        sess["reader"], sess["writer"] = reader, writer
+        sess["tcp_open"] = True
+        sess["transport_open"] = True
+        logger.info(f"connect XHTTP[vless/{sess['mode']}] [{sess['uuid'][:8]}] -> {address}:{port}")
+        sess["downlink_task"] = asyncio.create_task(_pump_tcp_to_queue(sess, reader))
+        return True, payload
+
+    if family == "vmess":
+        info, err = _decode_request_header(buf, uuid)
+        if err or not info:
+            if _vmess_header_incomplete(err or ""):
+                return False, b""
+            raise ValueError(err or "invalid VMess header")
+        if not await _check_replay(info["auth_id"]):
+            raise ValueError("VMess AuthID replay detected")
+        if info["sec_type"] not in (SEC_AES_GCM, SEC_CHACHA20_POLY1305, SEC_NONE, SEC_ZERO):
+            raise ValueError(f"unsupported VMess security type: {info['sec_type']}")
+
+        reader, writer = await _connect_target(info["host"], info["port"])
+        sess["reader"], sess["writer"] = reader, writer
+        sess["tcp_open"] = True
+        sess["transport_open"] = True
+        sess["protocol_info"] = info
+
+        request_framer = _VMessBodyFramer(
+            info["sec_type"], info["req_key"], info["req_iv"], info["option"]
+        )
+        response_key = info.get("resp_body_key") or __import__("hashlib").sha256(info["req_key"]).digest()[:16]
+        response_iv = info.get("resp_body_iv") or __import__("hashlib").sha256(info["req_iv"]).digest()[:16]
+        sess["vmess_decoder"] = _BodyDecoder(request_framer)
+        sess["vmess_encoder"] = _BodyEncoder(
+            _VMessBodyFramer(
+                info["sec_type"], response_key, response_iv, info["option"],
+                length_key=info["req_key"], length_iv=info["req_iv"],
+            )
+        )
+        await sess["down_q"].put(_build_response_header(info))
+        logger.info(f"connect XHTTP[vmess/{sess['mode']}] [{sess['uuid'][:8]}] -> {info['host']}:{info['port']}")
+        sess["downlink_task"] = asyncio.create_task(_pump_tcp_to_queue(sess, reader))
+        body_init = info.get("body_init") or b""
+        plaintext_parts = sess["vmess_decoder"].feed(body_init) if body_init else []
+        for plaintext in plaintext_parts:
+            writer.write(plaintext)
+        if plaintext_parts:
+            await writer.drain()
+        return True, b""
+
+    if family == "trojan":
+        req = await _authenticate_and_parse_trojan(sess, buf)
+        if req is None:
+            return False, b""
+        sess["protocol_info"] = req
+        if req.cmd == 1:
+            reader, writer = await _connect_target(req.target_host, req.target_port)
+            sess["reader"], sess["writer"] = reader, writer
+            sess["tcp_open"] = True
+            sess["transport_open"] = True
+            logger.info(f"connect XHTTP[trojan/{sess['mode']}] [{sess['uuid'][:8]}] -> {req.target_host}:{req.target_port}")
+            sess["downlink_task"] = asyncio.create_task(_pump_tcp_to_queue(sess, reader))
+            return True, buf[req.payload_offset:]
+        if req.cmd == 3:
+            loop = asyncio.get_running_loop()
+            incoming: asyncio.Queue = asyncio.Queue(maxsize=256)
+            pair = await _create_udp_transports(loop, incoming)
+            if not pair.ipv4 and not pair.ipv6:
+                raise OSError("no UDP transport available")
+            sess["udp_incoming"] = incoming
+            sess["udp_transports"] = pair
+            sess["udp_open"] = True
+            sess["transport_open"] = True
+            sess["udp_task"] = asyncio.create_task(_pump_udp_to_queue(sess, incoming))
+            logger.info(f"open XHTTP[trojan/{sess['mode']}] UDP [{sess['uuid'][:8]}]")
+            return True, buf[req.payload_offset:]
+        raise ValueError("unsupported Trojan command")
+
+    raise ValueError(f"unsupported XHTTP protocol family: {family}")
+
+
+async def _write_tcp(sess: dict, data: bytes, flow: _AdaptiveFlow | None = None):
+    if not data:
+        return
+    if sess["family"] == "vmess":
+        decoder = sess.get("vmess_decoder")
+        plaintexts = decoder.feed(data) if decoder else []
+    else:
+        plaintexts = [data]
+    writer = sess.get("writer")
+    if not writer:
+        raise ConnectionError("target writer is not available")
+    for plaintext in plaintexts:
+        if not plaintext:
+            continue
+        writer.write(plaintext)
+        if flow is not None and flow.should_drain(writer.transport.get_write_buffer_size()):
+            await flow.drain(writer)
+        elif flow is None and writer.transport.get_write_buffer_size() > PACKET_UP_HIGH_WATER:
+            await writer.drain()
+
+
+async def _process_upload_data(sess: dict, data: bytes, flow: _AdaptiveFlow | None = None):
+    if not data:
+        return
+    sess["last_seen"] = time.time()
+    if not sess.get("transport_open"):
+        sess["handshake_buffer"].extend(data)
+        ready, remainder = await _try_initialize(sess)
+        if not ready:
+            return
+        if remainder:
+            await _write_tcp(sess, remainder, flow)
+        sess["handshake_buffer"].clear()
+        return
+
+    if sess.get("tcp_open"):
+        await _write_tcp(sess, data, flow)
+        return
+
+    # Trojan UDP transport.
+    if sess.get("udp_open"):
+        sess["udp_buffer"].extend(data)
+        records, tail = _parse_udp_records(bytes(sess["udp_buffer"]))
+        sess["udp_buffer"] = bytearray(tail)
+        pair = sess.get("udp_transports")
+        for host, port, payload in records:
+            if not payload:
+                continue
+            key = (host, port)
+            targets = sess["udp_dns_cache"].get(key)
+            if targets is None:
+                targets = await _resolve_udp_target(host, port)
+                sess["udp_dns_cache"][key] = targets
+            delivered = False
+            for family, sockaddr in targets:
+                tr = pair.ipv4 if family == socket.AF_INET else pair.ipv6
+                if not tr:
+                    continue
+                tr.sendto(payload, sockaddr)
+                delivered = True
+                break
+            if not delivered:
+                raise OSError(f"unable to send UDP target {host}:{port}")
+        return
+
+    raise ConnectionError("XHTTP session has no active transport")
+
+
+async def _pump_tcp_to_queue(sess: dict, reader: asyncio.StreamReader):
+    # Keep the HTTP layer and the proxy-protocol layer separate: the HTTP
+    # response advertises SSE via Content-Type, while the actual proxy bytes
+    # are forwarded unchanged. VLESS gets its two-byte response header once.
+    first_vless = True
+    gate = _QuotaGate(sess["uuid"])
+    delivered = 0
     try:
         while True:
             data = await reader.read(XHTTP_BUF)
@@ -296,33 +563,58 @@ async def _pump_tcp_to_queue(session_id: str, uuid: str, reader: asyncio.StreamR
                 break
             if not await gate.add(len(data)):
                 break
-            await throttle(uuid, len(data))
-            async with XHTTP_LOCK:
-                sess = xhttp_sessions.get(session_id)
-            if sess:
-                c = connections.get(sess["conn_id"])
-                if c:
-                    c["bytes"] += len(data)
-            payload = (b"\x00\x00" + data) if first else data
-            first = False
-            await down_q.put(payload)
-    except (asyncio.CancelledError, Exception):
-        pass
+            await throttle(sess["uuid"], len(data))
+            c = connections.get(sess["conn_id"])
+            if c:
+                c["bytes"] += len(data)
+            delivered += len(data)
+            sess["last_seen"] = time.time()
+
+            if sess["family"] == "vmess":
+                encoder = sess.get("vmess_encoder")
+                chunks = encoder.encode(data) if encoder else []
+                for chunk in chunks:
+                    await sess["down_q"].put(chunk)
+            else:
+                if sess["family"] == "vless" and first_vless:
+                    await sess["down_q"].put(b"\x00\x00")
+                    first_vless = False
+                await sess["down_q"].put(data)
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:
+        logger.debug("XHTTP TCP downlink closed: %s", exc)
     finally:
         await gate.flush()
-        await _teardown(session_id)
+        logger.info(
+            "downlink closed XHTTP[%s/%s] [%s] bytes=%d",
+            sess.get("family"), sess.get("mode"),
+            sess.get("session_id", "?")[:8], delivered,
+        )
+        await _teardown(sess["session_id"])
 
 
-async def _open_tcp_for_session(session_id: str, uuid: str, sess: dict, first_chunk: bytes):
-    """تونل TCP رو از روی هدر VLESS باز می‌کنه و پمپ دانلینک رو راه می‌اندازه."""
-    reader, writer, address, port = await _open_tcp_from_header(first_chunk)
-    logger.info(f"connect XHTTP[{sess['mode']}] [{session_id[:8]}] -> {address}:{port}")
-    sess["writer"] = writer
-    sess["tcp_open"] = True
-    sess["downlink_task"] = asyncio.create_task(
-        _pump_tcp_to_queue(session_id, uuid, reader, sess["down_q"])
-    )
-    asyncio.create_task(save_state())
+async def _pump_udp_to_queue(sess: dict, incoming: asyncio.Queue):
+    gate = _QuotaGate(sess["uuid"])
+    try:
+        while True:
+            data, source = await incoming.get()
+            if not data:
+                continue
+            if not await gate.add(len(data)):
+                break
+            await throttle(sess["uuid"], len(data))
+            c = connections.get(sess["conn_id"])
+            if c:
+                c["bytes"] += len(data)
+            await sess["down_q"].put(_udp_record(source, data))
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:
+        logger.debug("XHTTP UDP downlink closed: %s", exc)
+    finally:
+        await gate.flush()
+        await _teardown(sess["session_id"])
 
 
 def _downstream_gen(sess: dict):
@@ -339,7 +631,6 @@ def _downstream_gen(sess: dict):
     return gen()
 
 
-# ══════════════════════════════ GET دانلینک (مشترک بین سه مد) ══════════════════════════════
 @router.get("/xhttp-siz10/{mode}/{uuid}/{session_id}")
 async def xhttp_downlink(mode: str, uuid: str, session_id: str, request: Request):
     ensure_reaper()
@@ -348,18 +639,18 @@ async def xhttp_downlink(mode: str, uuid: str, session_id: str, request: Request
     await _check_link(uuid)
     fp = request.query_params.get("fp", DEFAULT_FINGERPRINT)
     sess = await _get_or_create_session(uuid, mode, session_id, _req_client_ip(request))
+    sess["session_id"] = session_id
     if sess.get("closed"):
         raise HTTPException(status_code=404, detail="session closed")
-
     headers = _resp_headers(fp)
     return StreamingResponse(_downstream_gen(sess), headers=headers, media_type=headers["content-type"])
 
 
-# ══════════════════════════════ PACKET-UP (آپلینک با seq) ══════════════════════════════
 @router.post("/xhttp-siz10/packet-up/{uuid}/{session_id}/{seq}")
 async def packet_up_upload(uuid: str, session_id: str, seq: int, request: Request):
     ensure_reaper()
     sess = await _get_or_create_session(uuid, "packet-up", session_id, _req_client_ip(request))
+    sess["session_id"] = session_id
     if sess.get("closed"):
         raise HTTPException(status_code=404, detail="session closed")
 
@@ -372,55 +663,35 @@ async def packet_up_upload(uuid: str, session_id: str, seq: int, request: Reques
         await _teardown(session_id)
         raise HTTPException(status_code=403, detail="quota/disabled/unknown")
     await throttle(uuid, len(body))
-
     stats["total_requests"] += 1
     connections[sess["conn_id"]]["bytes"] += len(body)
 
     try:
-        if sess["writer"] is None:
-            # اولین پکتی که حاوی هدر VLESS است، می‌تونه seq=0 نباشه اگر پکت‌ها
-            # خارج از ترتیب برسن؛ بافر کوچیک برای سورت کردن seqهای زودرس.
-            if seq != 0:
-                sess["seq_buf"][seq] = body
-                return {"ok": True, "buffered": True}
-            await _open_tcp_for_session(session_id, uuid, sess, body)
-            # هر پکت بافرشده‌ای که حالا نوبتش رسیده رو هم بفرست
-            nxt = 1
-            while nxt in sess["seq_buf"]:
-                pending = sess["seq_buf"].pop(nxt)
-                sess["writer"].write(pending)
-                nxt += 1
-            sess["next_seq"] = nxt
-            return {"ok": True, "connected": True}
-
-        if seq == sess["next_seq"]:
-            sess["writer"].write(body)
+        if seq < sess["next_seq"]:
+            return {"ok": True, "duplicate": True, "connected": bool(sess.get("transport_open"))}
+        if seq != sess["next_seq"] and len(sess["seq_buf"]) >= MAX_BUFFERED_POSTS:
+            await _teardown(session_id)
+            raise HTTPException(status_code=409, detail="too many buffered XHTTP posts")
+        sess["seq_buf"][seq] = body
+        while sess["next_seq"] in sess["seq_buf"]:
+            pending = sess["seq_buf"].pop(sess["next_seq"])
+            await _process_upload_data(sess, pending)
             sess["next_seq"] += 1
-            while sess["next_seq"] in sess["seq_buf"]:
-                pending = sess["seq_buf"].pop(sess["next_seq"])
-                sess["writer"].write(pending)
-                sess["next_seq"] += 1
-        else:
-            sess["seq_buf"][seq] = body
-
-        if sess["writer"].transport.get_write_buffer_size() > PACKET_UP_HIGH_WATER:
+        if sess.get("writer") and sess["writer"].transport.get_write_buffer_size() > PACKET_UP_HIGH_WATER:
             await sess["writer"].drain()
     except Exception as exc:
         error_logs.append({"error": str(exc), "time": datetime.now().isoformat()})
         await _teardown(session_id)
-        raise HTTPException(status_code=502, detail="write failed")
+        raise HTTPException(status_code=502, detail=f"{sess.get('family', 'xhttp')} write failed")
 
-    return {"ok": True}
+    return {"ok": True, "connected": bool(sess.get("transport_open"))}
 
 
-# ══════════════════════════════ STREAM-UP (یک POST پیوسته) ══════════════════════════════
-# موتور تطبیقی: _QuotaGate (batch کوتا بر اساس نرخ واقعی) + _AdaptiveFlow (AIMD روی
-# high-water درین) + کش رفرنس‌ها داخل لوپ. هیچ داده‌ای بافر/coalesce نمی‌شه —
-# هر بایت فوری write() می‌شه، فقط «کِی صبر کنیم برای drain» تطبیقیه.
 @router.post("/xhttp-siz10/stream-up/{uuid}/{session_id}")
 async def stream_up_upload(uuid: str, session_id: str, request: Request):
     ensure_reaper()
     sess = await _get_or_create_session(uuid, "stream-up", session_id, _req_client_ip(request))
+    sess["session_id"] = session_id
     if sess.get("closed"):
         raise HTTPException(status_code=404, detail="session closed")
 
@@ -428,36 +699,23 @@ async def stream_up_upload(uuid: str, session_id: str, request: Request):
     if gate is None:
         gate = _QuotaGate(uuid)
         sess["gate"] = gate
-
     flow = sess.get("flow")
     if flow is None:
         flow = _AdaptiveFlow()
         sess["flow"] = flow
-
-    conn = connections[sess["conn_id"]]   # یک بار لوک‌آپ، نه هر چانک
-    writer = sess["writer"]               # ممکنه هنوز None باشه
+    conn = connections[sess["conn_id"]]
 
     try:
         async for chunk in request.stream():
             if not chunk:
                 continue
             sess["last_seen"] = time.time()
-
             if not await gate.add(len(chunk)):
                 raise HTTPException(status_code=403, detail="quota/disabled/unknown")
             await throttle(uuid, len(chunk))
-
             stats["total_requests"] += 1
             conn["bytes"] += len(chunk)
-
-            if writer is None:
-                await _open_tcp_for_session(session_id, uuid, sess, chunk)
-                writer = sess["writer"]
-                continue
-
-            writer.write(chunk)
-            if flow.should_drain(writer.transport.get_write_buffer_size()):
-                await flow.drain(writer)
+            await _process_upload_data(sess, chunk, flow)
     except HTTPException:
         await gate.flush()
         await _teardown(session_id)
@@ -466,7 +724,7 @@ async def stream_up_upload(uuid: str, session_id: str, request: Request):
         error_logs.append({"error": str(exc), "time": datetime.now().isoformat()})
         await gate.flush()
         await _teardown(session_id)
-        raise HTTPException(status_code=502, detail="stream error")
+        raise HTTPException(status_code=502, detail=f"{sess.get('family', 'xhttp')} stream error")
 
     await gate.flush()
     return {"ok": True}

@@ -1,61 +1,68 @@
-# ═══════════════════════════════════════════════════════════════════════
-# OMID-IRAN PANEL · Dockerfile
-# Multi-stage build for FastAPI + VLESS relay + Telegram bot
-# ═══════════════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════════════════
+# OMID-IRAN PANEL v2.0.0 — Production Dockerfile
+# ══════════════════════════════════════════════════════════════════════════
+#   • Base: python:3.11-slim (سبک، امن، با پشتیبانی طولانی)
+#   • Non-root user برای امنیت
+#   • Volume mount point روی /data برای persist state
+#   • Healthcheck روی /health
+#   • Multi-arch ready (amd64 + arm64)
+# ══════════════════════════════════════════════════════════════════════════
 
-# ── Stage 1: Builder ──────────────────────────────────────────────────
-FROM python:3.11-slim AS builder
+FROM python:3.11-slim
 
+# ── System dependencies ───────────────────────────────────────────────────
+# ca-certificates → برای TLS (httpx به HTTPS وصل می‌شه)
+# tzdata          → برای ZoneInfo("Asia/Tehran")
+# curl            → اختیاری، برای healthcheck/diagnostics
+# بدون gcc/pybuild-essential چون همه‌ی پکیج‌ها wheel آماده دارن
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        tzdata \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# ── Environment ───────────────────────────────────────────────────────────
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
-
-WORKDIR /build
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        gcc \
-        python3-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-COPY requirements.txt .
-RUN python -m venv /opt/venv && \
-    /opt/venv/bin/pip install --upgrade pip && \
-    /opt/venv/bin/pip install -r requirements.txt
-
-# ── Stage 2: Runtime ──────────────────────────────────────────────────
-FROM python:3.11-slim AS runtime
-
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PATH="/opt/venv/bin:$PATH" \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    TZ=Asia/Tehran \
     DATA_DIR=/data \
     PORT=8000
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        tzdata \
-        curl \
-        ca-certificates \
-    && rm -rf /var/lib/apt/lists/* \
-    && ln -snf /usr/share/zoneinfo/Asia/Tehran /etc/localtime \
-    && echo "Asia/Tehran" > /etc/timezone
-
-COPY --from=builder /opt/venv /opt/venv
-
+# ── Working directory ─────────────────────────────────────────────────────
 WORKDIR /app
 
-COPY main.py relay_vless.py xhttp_siz10.py speed_limit.py telegram_bot.py pages.py public_page.py ./
+# ── Python dependencies (cache layer) ─────────────────────────────────────
+# این لایه کش می‌شه مادامی که requirements.txt تغییر نکنه
+COPY requirements.txt ./
 
-RUN useradd --create-home --shell /bin/bash --uid 1000 omid && \
-    mkdir -p /data && \
-    chown -R omid:omid /app /data
+RUN python -m pip install --upgrade pip \
+ && python -m pip install -r requirements.txt
+
+# ── Application code ──────────────────────────────────────────────────────
+COPY . .
+
+# ── Non-root user (امنیت) ─────────────────────────────────────────────────
+RUN groupadd --system --gid 1000 omid \
+ && useradd  --system --uid 1000 --gid omid --create-home omid \
+ && mkdir -p /data \
+ && chown -R omid:omid /app /data
 
 USER omid
 
+# ── Volume (state persistence) ────────────────────────────────────────────
+# روی سرور باید mount بشه:  -v /host/path:/data
 VOLUME ["/data"]
+
+# ── Port ──────────────────────────────────────────────────────────────────
 EXPOSE 8000
 
+# ── Healthcheck ───────────────────────────────────────────────────────────
+# از پایتون استفاده می‌کنیم چون curl توی slim image پیش‌فرض نیست
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
-    CMD curl -f http://127.0.0.1:${PORT}/health || exit 1
+    CMD python -c "import urllib.request, sys; \
+        sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).status == 200 else 1)"
 
-CMD ["sh", "-c", "exec uvicorn main:app --host 0.0.0.0 --port ${PORT} --log-level info --workers 1"]
+# ── Start command ─────────────────────────────────────────────────────────
+CMD ["python", "main.py"]

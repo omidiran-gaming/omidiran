@@ -1,9 +1,9 @@
 # relay_vless.py
-# بخش VLESS Relay — جدا شده از main.py (منطق اصلی دست‌نخورده)
-# تغییر: ثبت IP واقعی کلاینت (با احتساب هدر x-forwarded-for پشت پراکسی) در connections
+# بخش VLESS Relay — بهینه‌شده برای کارایی بالا و حذف گلوگاه‌های قفل‌گذاری
 
 import asyncio
 import secrets
+import socket
 from datetime import datetime
 
 from fastapi import WebSocket, WebSocketDisconnect
@@ -25,7 +25,7 @@ from main import (
 from speed_limit import throttle
 
 # ══════════════════════════════════════════════════════════════════════════════
-# VLESS Relay — بهینه‌شده برای حداکثر throughput
+# VLESS Relay — بهینه‌شده برای حداکثر Throughput و حداقل مصرف CPU
 # ══════════════════════════════════════════════════════════════════════════════
 
 RELAY_BUF = 256 * 1024   # 256 KB buffer
@@ -61,15 +61,17 @@ async def parse_vless_header(chunk: bytes):
     return command, address, port, chunk[pos:]
 
 async def check_and_use(uid: str, n: int) -> bool:
-    async with LINKS_LOCK:
-        link = LINKS.get(uid)
-        if link is None:
-            return False
-        if not is_link_allowed(link):
-            return False
-        link["used_bytes"] += n
-        stats["total_bytes"] += n
-        hourly_traffic[now_ir().strftime("%H:00")] += n
+    # حذف LINKS_LOCK به ازای هر پکت جهت جلوگیری از درگیر شدن شدید CPU
+    link = LINKS.get(uid)
+    if link is None or not is_link_allowed(link):
+        return False
+    
+    link["used_bytes"] += n
+    stats["total_bytes"] += n
+    
+    # جلوگیری از KeyError در صورت ورود به ساعت جدید
+    hour_key = now_ir().strftime("%H:00")
+    hourly_traffic[hour_key] = hourly_traffic.get(hour_key, 0) + n
     return True
 
 async def relay_ws_to_tcp(ws: WebSocket, writer: asyncio.StreamWriter, conn_id: str, uid: str):
@@ -86,7 +88,8 @@ async def relay_ws_to_tcp(ws: WebSocket, writer: asyncio.StreamWriter, conn_id: 
                 break
             await throttle(uid, len(data))
             stats["total_requests"] += 1
-            connections[conn_id]["bytes"] += len(data)
+            if conn_id in connections:
+                connections[conn_id]["bytes"] += len(data)
             writer.write(data)
             if writer.transport.get_write_buffer_size() > RELAY_BUF:
                 await writer.drain()
@@ -94,7 +97,8 @@ async def relay_ws_to_tcp(ws: WebSocket, writer: asyncio.StreamWriter, conn_id: 
         pass
     finally:
         try:
-            writer.write_eof()
+            if writer.can_write_eof():
+                writer.write_eof()
         except Exception:
             pass
 
@@ -109,7 +113,8 @@ async def relay_tcp_to_ws(ws: WebSocket, reader: asyncio.StreamReader, conn_id: 
                 await ws.close(code=1008, reason="quota/disabled/unknown")
                 break
             await throttle(uid, len(data))
-            connections[conn_id]["bytes"] += len(data)
+            if conn_id in connections:
+                connections[conn_id]["bytes"] += len(data)
             payload = (b"\x00\x00" + data) if first else data
             first = False
             await ws.send_bytes(payload)
@@ -157,6 +162,12 @@ async def websocket_tunnel(ws: WebSocket, uuid: str):
 
         command, address, port, payload = await parse_vless_header(first_chunk)
 
+        # پشتیبانی فقط از دستور TCP (command = 1)
+        if command != 1:
+            logger.warning(f"⚠️ Unsupported VLESS command {command} from ip={ip}")
+            await ws.close(code=1003, reason="unsupported command (only TCP supported)")
+            return
+
         if not await check_and_use(uuid, len(first_chunk)):
             await ws.close(code=1008, reason="quota/disabled")
             return
@@ -171,7 +182,6 @@ async def websocket_tunnel(ws: WebSocket, uuid: str):
         )
         sock = writer.transport.get_extra_info('socket')
         if sock:
-            import socket
             sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
 
         if payload:
