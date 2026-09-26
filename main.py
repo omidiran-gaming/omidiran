@@ -75,22 +75,38 @@ def is_browser_request(request: Request) -> bool:
 # ── Startup / Shutdown ────────────────────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan handler replacing deprecated on_event hooks."""
-    global http_client
+    """Application lifespan with verified persistent state and periodic autosave."""
+    global http_client, autosave_task
     # ── Startup ──
     limits = httpx.Limits(max_connections=500, max_keepalive_connections=100)
     timeout = httpx.Timeout(30.0, connect=10.0)
     http_client = httpx.AsyncClient(
         limits=limits, timeout=timeout, follow_redirects=True,
     )
+
+    # Persistence must be available before the panel starts serving traffic.
+    await verify_persistence()
     await load_state()
     await _tg_start_bot()
+    autosave_task = asyncio.create_task(_autosave_loop(), name="omid-state-autosave")
     log_activity("system", "Server started", "ok")
-    logger.info(f"OMID-IRAN PANEL v2.0.0 started on port {CONFIG['port']}")
+    logger.info(
+        f"OMID-IRAN PANEL v2.0.0 started on port {CONFIG['port']} "
+        f"| DATA_DIR={DATA_DIR} | STATE_FILE={DATA_FILE}"
+    )
 
     yield  # Application runs while suspended here
 
     # ── Shutdown ──
+    if autosave_task:
+        autosave_task.cancel()
+        try:
+            await autosave_task
+        except asyncio.CancelledError:
+            pass
+        autosave_task = None
+
+    # Final synchronous save before the process exits.
     await save_state()
     await _tg_stop_bot()
     if http_client:
@@ -104,10 +120,16 @@ app = FastAPI(
 )
 
 # ── Persistence ───────────────────────────────────────────────────────────────
-DATA_DIR = Path(os.environ.get("DATA_DIR", "/data"))
+_configured_data_dir = (os.environ.get("DATA_DIR") or "/data").strip()
+DATA_DIR = Path(_configured_data_dir).expanduser()
 DATA_FILE = DATA_DIR / "gateway_state.json"
 SECRET_FILE = DATA_DIR / "gateway_secret.key"
 SAVE_LOCK = asyncio.Lock()
+autosave_task: asyncio.Task | None = None
+try:
+    PERSISTENCE_INTERVAL = max(5, int(os.environ.get("PERSISTENCE_INTERVAL", "15")))
+except (TypeError, ValueError):
+    PERSISTENCE_INTERVAL = 15
 
 def _load_or_create_secret() -> str:
     """Persist SECRET_KEY so passwords and sessions remain stable across restarts.
@@ -143,54 +165,110 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+def _write_state_file_sync(path: Path, payload: str) -> None:
+    """Atomically write state to disk and force it through the filesystem cache."""
+    tmp = path.with_name(path.name + f".{os.getpid()}.tmp")
+    with open(tmp, "w", encoding="utf-8") as f:
+        f.write(payload)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, path)
+
+    # fsync the directory entry as well. This is supported on Linux/Railway.
+    try:
+        dir_fd = os.open(str(path.parent), os.O_DIRECTORY)
+    except (AttributeError, OSError):
+        dir_fd = None
+    if dir_fd is not None:
+        try:
+            os.fsync(dir_fd)
+        finally:
+            os.close(dir_fd)
+
+async def verify_persistence() -> None:
+    """Verify that DATA_DIR is writable before the service starts serving traffic."""
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    probe = DATA_DIR / f".omid_persistence_probe_{os.getpid()}"
+    try:
+        await asyncio.to_thread(probe.write_text, "ok", encoding="utf-8")
+        await asyncio.to_thread(probe.unlink)
+        logger.info(f"Persistence ready: {DATA_DIR} (state: {DATA_FILE})")
+    except Exception as e:
+        logger.error(f"Persistent storage is NOT writable: {DATA_DIR}: {e}")
+        raise RuntimeError(f"Persistent storage is not writable: {DATA_DIR}") from e
+
 async def load_state():
     global LINKS, AUTH, SUBS
     try:
         DATA_DIR.mkdir(parents=True, exist_ok=True)
-        if DATA_FILE.exists():
-            async with aiofiles.open(DATA_FILE, "r", encoding="utf-8") as f:
-                raw = await f.read()
-            data = json.loads(raw)
-            LINKS.update(data.get("links", {}))
-            # Migrate protocol values from older panel builds.
-            for _uid, _link in LINKS.items():
-                _link["protocol"] = normalize_protocol(_link.get("protocol"))
-                if _link.get("protocol", "").startswith("trojan-") and not _link.get("password"):
-                    _link["password"] = generate_trojan_password()
-            SUBS.update(data.get("subs", {}))
-            if "username" in data and str(data["username"]).strip():
-                AUTH["username"] = str(data["username"]).strip()
-            if "password_hash" in data:
-                AUTH["password_hash"] = data["password_hash"]
-            if "telegram" in data:
-                tg = data["telegram"]
-                if "bot_token" in tg:
-                    TELEGRAM["bot_token"] = str(tg.get("bot_token") or "").strip()
-                if "admin_ids" in tg:
-                    TELEGRAM["admin_ids"] = str(tg.get("admin_ids") or "").strip()
-                TELEGRAM["enabled"] = bool(TELEGRAM["bot_token"])
-            logger.info(f"State loaded: {len(LINKS)} links, {len(SUBS)} subs")
+        if not DATA_FILE.exists():
+            logger.info(f"No saved state found at {DATA_FILE}; starting with fresh state")
+            return
+
+        async with aiofiles.open(DATA_FILE, "r", encoding="utf-8") as f:
+            raw = await f.read()
+        data = json.loads(raw)
+
+        LINKS.update(data.get("links", {}))
+        # Migrate protocol values from older panel builds.
+        for _uid, _link in LINKS.items():
+            _link["protocol"] = normalize_protocol(_link.get("protocol"))
+            if _link.get("protocol", "").startswith("trojan-") and not _link.get("password"):
+                _link["password"] = generate_trojan_password()
+        SUBS.update(data.get("subs", {}))
+        if "username" in data and str(data["username"]).strip():
+            AUTH["username"] = str(data["username"]).strip()
+        if "password_hash" in data:
+            AUTH["password_hash"] = data["password_hash"]
+        if "telegram" in data:
+            tg = data["telegram"]
+            if "bot_token" in tg:
+                TELEGRAM["bot_token"] = str(tg.get("bot_token") or "").strip()
+            if "admin_ids" in tg:
+                TELEGRAM["admin_ids"] = str(tg.get("admin_ids") or "").strip()
+            TELEGRAM["enabled"] = bool(TELEGRAM["bot_token"])
+        logger.info(
+            f"State loaded: {len(LINKS)} links, {len(SUBS)} subs "
+            f"from {DATA_FILE}"
+        )
     except Exception as e:
-        logger.warning(f"Could not load state: {e}")
+        logger.exception(f"Could not load state from {DATA_FILE}: {e}")
+        # Do not silently pretend persistence is healthy. The server can still
+        # start, but the exact path/error is now visible in Railway logs.
 
 async def save_state():
+    """Persist the complete panel state atomically and durably."""
     async with SAVE_LOCK:
         try:
             DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+            # Snapshot under the same locks used by the mutation paths so a
+            # concurrent request cannot produce a partial/inconsistent JSON file.
+            async with LINKS_LOCK:
+                links_snapshot = {k: dict(v) for k, v in LINKS.items()}
+            async with SUBS_LOCK:
+                subs_snapshot = {k: dict(v) for k, v in SUBS.items()}
+
             data = {
-                "links": dict(LINKS),
-                "subs": dict(SUBS),
+                "links": links_snapshot,
+                "subs": subs_snapshot,
                 "username": AUTH["username"],
                 "password_hash": AUTH["password_hash"],
                 "telegram": dict(TELEGRAM),
                 "saved_at": datetime.now().isoformat(),
             }
-            tmp = DATA_FILE.with_suffix(".tmp")
-            async with aiofiles.open(tmp, "w", encoding="utf-8") as f:
-                await f.write(json.dumps(data, ensure_ascii=False, indent=2))
-            tmp.replace(DATA_FILE)
+            payload = json.dumps(data, ensure_ascii=False, indent=2)
+            await asyncio.to_thread(_write_state_file_sync, DATA_FILE, payload)
+            logger.debug(f"State saved: {DATA_FILE} ({len(payload)} bytes)")
         except Exception as e:
-            logger.warning(f"Could not save state: {e}")
+            logger.exception(f"Could not save state to {DATA_FILE}: {e}")
+
+async def _autosave_loop() -> None:
+    """Periodic safety net for abrupt deploy/restart cases where shutdown hooks
+    are not given enough time to run."""
+    while True:
+        await asyncio.sleep(PERSISTENCE_INTERVAL)
+        await save_state()
 
 # ── In-memory state ───────────────────────────────────────────────────────────
 connections: dict = {}
@@ -534,6 +612,30 @@ def generate_vmess_link(
     if vmess_mode not in ("packet-up", "stream-up"):
         vmess_mode = ""
 
+    if is_xhttp:
+        # v2rayNG's current VMess standard-URI parser maps:
+        #   type=xhttp -> network=xhttp
+        #   mode=packet-up|stream-up -> xhttpMode
+        #   path/host -> the XHTTP transport settings
+        # A Base64 VMess JSON only fills `headerType` from `type` and does
+        # not populate xhttpMode, so XHTTP imports can lose the selected mode.
+        # Generate the standard URI for XHTTP to preserve the mode on Android.
+        params = {
+            "type": "xhttp",
+            "mode": vmess_mode,
+            "host": host,
+            "path": f"/xhttp-siz10/{vmess_mode}/{uuid}",
+            "security": "tls",
+            "sni": host,
+            "fp": fp,
+            "alpn": alpn_val,
+            "insecure": "0",
+        }
+        query = "&".join(f"{k}={quote(str(v))}" for k, v in params.items())
+        return f"vmess://{quote(uuid)}@{host}:{port_val}?{query}#{quote(remark)}"
+
+    # Keep the existing Base64 JSON form for VMess WebSocket to avoid
+    # changing the already-established WS export format.
     vmess_config = {
         "v": "2",
         "ps": remark,
@@ -542,14 +644,10 @@ def generate_vmess_link(
         "id": uuid,
         "aid": "0",
         "scy": "auto",
-        # VMess XHTTP import compatibility:
-        # the 3x-ui/XHTTP VMess importer expects the selected XHTTP mode
-        # in the legacy `type` field (packet-up / stream-up). For WebSocket
-        # keep the normal VMess `type=none`.
-        "net": "xhttp" if is_xhttp else "ws",
-        "type": vmess_mode if is_xhttp and vmess_mode else "none",
+        "net": "ws",
+        "type": "none",
         "host": host,
-        "path": f"/xhttp-siz10/{vmess_mode}/{uuid}" if is_xhttp and vmess_mode else f"/vmess/{uuid}",
+        "path": f"/vmess/{uuid}",
         "tls": "tls",
         "sni": host,
         "alpn": alpn_val,
@@ -558,9 +656,6 @@ def generate_vmess_link(
         "vcn": "",
         "pcs": "",
     }
-    # Do not add a separate `mode` key for VMess XHTTP here.
-    # The target importer reads packet-up / stream-up from `type`.
-
     json_bytes = json.dumps(
         vmess_config,
         ensure_ascii=False,
@@ -726,6 +821,8 @@ async def ensure_default_link():
     global _default_link_created
     if _default_link_created:
         return
+
+    created = False
     async with LINKS_LOCK:
         if not any(l.get("is_default") for l in LINKS.values()):
             uid = hashlib.sha256(f"default{CONFIG['secret']}".encode()).hexdigest()
@@ -749,8 +846,11 @@ async def ensure_default_link():
                     "speed_limit_bytes": DEFAULT_SPEED_LIMIT,
                     "sub_token": "OMIDIRAN",  # Default custom subscription token
                 }
-                asyncio.create_task(save_state())
+                created = True
         _default_link_created = True
+
+    if created:
+        await save_state()
 
 # ── Basic endpoints ───────────────────────────────────────────────────────────
 @app.get("/", response_class=HTMLResponse)
@@ -836,7 +936,7 @@ async def create_sub(request: Request, _=Depends(require_auth)):
             "created_at": datetime.now().isoformat(),
             "link_ids": [],
         }
-    asyncio.create_task(save_state())
+    await save_state()
     log_activity("sub", f'Group "{name}" created', "ok")
     host = get_host(request)
     return {
@@ -889,7 +989,7 @@ async def update_sub(sub_id: str, request: Request, _=Depends(require_auth)):
             s["password_hash"] = hash_password(pw) if pw else None
         if "link_ids" in body:
             s["link_ids"] = list(body["link_ids"])
-    asyncio.create_task(save_state())
+    await save_state()
     return {"ok": True}
 
 @app.delete("/api/subs/{sub_id}")
@@ -903,7 +1003,7 @@ async def delete_sub(sub_id: str, _=Depends(require_auth)):
         for link in LINKS.values():
             if link.get("sub_id") == sub_id:
                 link["sub_id"] = None
-    asyncio.create_task(save_state())
+    await save_state()
     log_activity("sub", f'Group "{name}" deleted', "warn")
     return {"ok": True, "deleted": sub_id}
 
@@ -926,7 +1026,7 @@ async def assign_link_to_sub(sub_id: str, request: Request, _=Depends(require_au
     async with LINKS_LOCK:
         if link_id in LINKS:
             LINKS[link_id]["sub_id"] = sub_id if action == "add" else None
-    asyncio.create_task(save_state())
+    await save_state()
     return {"ok": True}
 
 # ── Public sub-group subscription file ───────────────────────────────────────
@@ -1208,7 +1308,7 @@ async def make_link(
                 ids = SUBS[sub_id].setdefault("link_ids", [])
                 if uid not in ids:
                     ids.append(uid)
-    asyncio.create_task(save_state())
+    await save_state()
     log_activity("link", f'Config "{LINKS[uid]["label"]}" created', "ok")
     return uid, LINKS[uid]
 
@@ -1225,7 +1325,7 @@ async def remove_link(uid: str) -> str | None:
                 ids = SUBS[sub_id].get("link_ids", [])
                 if uid in ids:
                     ids.remove(uid)
-    asyncio.create_task(save_state())
+    await save_state()
     log_activity("link", f'Config "{label}" deleted', "err")
     return label
 
@@ -1236,7 +1336,7 @@ async def set_link_active(uid: str, active: bool) -> dict | None:
         LINKS[uid]["active"] = bool(active)
         label = LINKS[uid]["label"]
     log_activity("link", f'Config "{label}" {"enabled" if active else "disabled"}', "ok" if active else "warn")
-    asyncio.create_task(save_state())
+    await save_state()
     return LINKS[uid]
 
 async def update_link_field(uid: str, field: str, value) -> dict | None:
@@ -1247,7 +1347,7 @@ async def update_link_field(uid: str, field: str, value) -> dict | None:
         LINKS[uid][field] = value
         link = dict(LINKS[uid])
     log_activity("link", f'Config "{link.get("label", "?")}" updated: {field}', "info")
-    asyncio.create_task(save_state())
+    await save_state()
     return link
 
 async def reset_link_usage(uid: str) -> dict | None:
@@ -1258,7 +1358,7 @@ async def reset_link_usage(uid: str) -> dict | None:
         LINKS[uid]["used_bytes"] = 0
         link = dict(LINKS[uid])
     log_activity("link", f'Config "{link.get("label", "?")}" usage reset', "info")
-    asyncio.create_task(save_state())
+    await save_state()
     return link
 
 # ── Shared subscription-group helpers (web API and Telegram bot) ──
@@ -1277,7 +1377,7 @@ async def create_sub_group(name: str = "New Group", desc: str = "", password: st
             "created_at": datetime.now().isoformat(),
             "link_ids": [],
         }
-    asyncio.create_task(save_state())
+    await save_state()
     log_activity("sub", f'Group "{name}" created', "ok")
     return sub_id, SUBS[sub_id]
 
@@ -1304,7 +1404,7 @@ async def set_link_sub(uid: str, sub_id: str | None) -> bool:
     async with LINKS_LOCK:
         if uid in LINKS:
             LINKS[uid]["sub_id"] = sub_id
-    asyncio.create_task(save_state())
+    await save_state()
     log_activity("link", f'Config "{label}" {"added to group" if sub_id else "removed from group"}', "info")
     return True
 
@@ -1318,7 +1418,7 @@ async def remove_sub_group(sub_id: str) -> str | None:
         for link in LINKS.values():
             if link.get("sub_id") == sub_id:
                 link["sub_id"] = None
-    asyncio.create_task(save_state())
+    await save_state()
     log_activity("sub", f'Group "{name}" deleted', "warn")
     return name
 
@@ -1472,7 +1572,7 @@ async def update_link(uid: str, request: Request, _=Depends(require_auth)):
                 if uid not in ids:
                     ids.append(uid)
 
-    asyncio.create_task(save_state())
+    await save_state()
     return {"ok": True}
 
 @app.delete("/api/links/{uid}")

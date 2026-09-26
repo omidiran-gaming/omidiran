@@ -1,6 +1,8 @@
 # xhttp_siz10.py
 # ══════════════════════════════════════════════════════════════════════════════
-# Siz10a · XHTTP Ultra Transport — دو مد: packet-up / stream-up
+# Siz10a · XHTTP Ultra Transport — two modes: packet-up / stream-up
+# Built from the known multi-protocol working XHTTP core.
+# Only VLESS mobile compatibility and Trojan-UDP remainder handling are changed.
 #  (stream-one حذف شد. منطق relay_vless دست‌نخورده.
 #   stream-up بازنویسی شده با موتور تطبیقی: _AdaptiveFlow (AIMD روی high-water)
 #   + _QuotaGate تطبیقی (batch بر اساس نرخ واقعی هر سشن) + سوکت تیون‌شده)
@@ -291,6 +293,8 @@ async def _get_or_create_session(uuid: str, mode: str, session_id: str, ip: str 
             "udp_transports": None,
             "udp_dns_cache": {},
             "udp_buffer": bytearray(),
+            "vmess_udp_transport": None,
+            "vmess_udp_queue": None,
         }
         xhttp_sessions[session_id] = sess
         logger.info(f"new XHTTP[{family}/{mode}] session [{session_id[:8]}] uuid={uuid[:8]} ip={ip}")
@@ -318,6 +322,13 @@ async def _teardown(session_id: str):
             await writer.wait_closed()
         except Exception:
             pass
+    vmess_udp_transport = sess.get("vmess_udp_transport")
+    if vmess_udp_transport:
+        try:
+            vmess_udp_transport.close()
+        except Exception:
+            pass
+
     pair = sess.get("udp_transports")
     if pair:
         for tr in (getattr(pair, "ipv4", None), getattr(pair, "ipv6", None)):
@@ -367,6 +378,88 @@ async def _connect_target(host: str, port: int):
     return reader, writer
 
 
+class _XHTTPVMessUDPProtocol(asyncio.DatagramProtocol):
+    def __init__(self, queue: asyncio.Queue):
+        self.queue = queue
+        self.transport = None
+
+    def connection_made(self, transport):
+        self.transport = transport
+
+    def datagram_received(self, data, addr):
+        if data:
+            try:
+                self.queue.put_nowait((data, addr))
+            except asyncio.QueueFull:
+                logger.warning("XHTTP VMess UDP receive queue full; dropping datagram from %s", addr)
+
+    def error_received(self, exc):
+        logger.warning("XHTTP VMess UDP socket error: %s", exc)
+
+    def connection_lost(self, exc):
+        try:
+            self.queue.put_nowait((None, None))
+        except asyncio.QueueFull:
+            pass
+
+
+async def _open_xhttp_vmess_udp(host: str, port: int):
+    loop = asyncio.get_running_loop()
+    queue = asyncio.Queue(maxsize=256)
+    transport, protocol = await asyncio.wait_for(
+        loop.create_datagram_endpoint(
+            lambda: _XHTTPVMessUDPProtocol(queue),
+            remote_addr=(host, port),
+        ),
+        timeout=TCP_CONNECT_TIMEOUT,
+    )
+    return transport, protocol, queue
+
+
+async def _write_vmess_udp(sess: dict, data: bytes):
+    if not data:
+        return
+    decoder = sess.get("vmess_decoder")
+    transport = sess.get("vmess_udp_transport")
+    if decoder is None or transport is None:
+        raise ConnectionError("VMess UDP transport is not available")
+    for datagram in decoder.feed(data):
+        if datagram:
+            transport.sendto(datagram)
+
+
+async def _pump_vmess_udp_to_queue(sess: dict, queue: asyncio.Queue):
+    gate = _QuotaGate(sess["uuid"])
+    delivered = 0
+    try:
+        while True:
+            data, _addr = await queue.get()
+            if data is None:
+                break
+            if not await gate.add(len(data)):
+                break
+            await throttle(sess["uuid"], len(data))
+            c = connections.get(sess["conn_id"])
+            if c:
+                c["bytes"] += len(data)
+            delivered += len(data)
+            encoder = sess.get("vmess_encoder")
+            if encoder:
+                for chunk in encoder.encode(data):
+                    await sess["down_q"].put(chunk)
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:
+        logger.debug("XHTTP VMess UDP downlink closed: %s", exc)
+    finally:
+        await gate.flush()
+        logger.info(
+            "downlink closed XHTTP[vmess/%s] [%s] udp-bytes=%d",
+            sess.get("mode"), sess.get("session_id", "?")[:8], delivered
+        )
+        await _teardown(sess["session_id"])
+
+
 async def _authenticate_and_parse_trojan(sess: dict, buffer: bytes):
     try:
         req = _parse_request_header(buffer)
@@ -400,8 +493,8 @@ async def _try_initialize(sess: dict):
             if len(buf) < 64 * 1024 and _is_incomplete_vless_error(exc):
                 return False, b""
             raise
-        if command != 1:
-            raise ValueError("XHTTP VLESS supports TCP command only")
+        # Mobile-compatibility: keep the legacy relay behavior and let the
+        # TCP target connection follow the parsed VLESS request.
         reader, writer = await _connect_target(address, port)
         sess["reader"], sess["writer"] = reader, writer
         sess["tcp_open"] = True
@@ -421,12 +514,7 @@ async def _try_initialize(sess: dict):
         if info["sec_type"] not in (SEC_AES_GCM, SEC_CHACHA20_POLY1305, SEC_NONE, SEC_ZERO):
             raise ValueError(f"unsupported VMess security type: {info['sec_type']}")
 
-        reader, writer = await _connect_target(info["host"], info["port"])
-        sess["reader"], sess["writer"] = reader, writer
-        sess["tcp_open"] = True
-        sess["transport_open"] = True
         sess["protocol_info"] = info
-
         request_framer = _VMessBodyFramer(
             info["sec_type"], info["req_key"], info["req_iv"], info["option"]
         )
@@ -439,15 +527,39 @@ async def _try_initialize(sess: dict):
                 length_key=info["req_key"], length_iv=info["req_iv"],
             )
         )
+
+        if info["cmd"] == 2:
+            udp_transport, _protocol, udp_queue = await _open_xhttp_vmess_udp(info["host"], info["port"])
+            sess["vmess_udp_transport"] = udp_transport
+            sess["vmess_udp_queue"] = udp_queue
+            sess["udp_open"] = True
+            sess["transport_open"] = True
+            await sess["down_q"].put(_build_response_header(info))
+            sess["downlink_task"] = asyncio.create_task(
+                _pump_vmess_udp_to_queue(sess, udp_queue)
+            )
+            logger.info(
+                f"connect XHTTP[vmess/{sess['mode']}/udp] [{sess['uuid'][:8]}] -> {info['host']}:{info['port']}"
+            )
+            body_init = info.get("body_init") or b""
+            if body_init:
+                await _write_vmess_udp(sess, body_init)
+            return True, b""
+
+        reader, writer = await _connect_target(info["host"], info["port"])
+        sess["reader"], sess["writer"] = reader, writer
+        sess["tcp_open"] = True
+        sess["transport_open"] = True
         await sess["down_q"].put(_build_response_header(info))
         logger.info(f"connect XHTTP[vmess/{sess['mode']}] [{sess['uuid'][:8]}] -> {info['host']}:{info['port']}")
         sess["downlink_task"] = asyncio.create_task(_pump_tcp_to_queue(sess, reader))
         body_init = info.get("body_init") or b""
-        plaintext_parts = sess["vmess_decoder"].feed(body_init) if body_init else []
-        for plaintext in plaintext_parts:
-            writer.write(plaintext)
-        if plaintext_parts:
-            await writer.drain()
+        if body_init:
+            plaintext_parts = sess["vmess_decoder"].feed(body_init)
+            for plaintext in plaintext_parts:
+                writer.write(plaintext)
+            if plaintext_parts:
+                await writer.drain()
         return True, b""
 
     if family == "trojan":
@@ -512,12 +624,23 @@ async def _process_upload_data(sess: dict, data: bytes, flow: _AdaptiveFlow | No
         if not ready:
             return
         if remainder:
-            await _write_tcp(sess, remainder, flow)
+            if sess.get("tcp_open"):
+                await _write_tcp(sess, remainder, flow)
+            elif sess.get("udp_open"):
+                # Trojan UDP sessions do not have a TCP writer. Route the
+                # remainder back through the UDP parser instead of _write_tcp.
+                sess["handshake_buffer"].clear()
+                await _process_upload_data(sess, remainder, flow)
+                return
         sess["handshake_buffer"].clear()
         return
 
     if sess.get("tcp_open"):
         await _write_tcp(sess, data, flow)
+        return
+
+    if sess.get("udp_open") and sess.get("family") == "vmess":
+        await _write_vmess_udp(sess, data)
         return
 
     # Trojan UDP transport.

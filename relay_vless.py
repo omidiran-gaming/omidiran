@@ -61,18 +61,20 @@ async def parse_vless_header(chunk: bytes):
     return command, address, port, chunk[pos:]
 
 async def check_and_use(uid: str, n: int) -> bool:
-    # حذف LINKS_LOCK به ازای هر پکت جهت جلوگیری از درگیر شدن شدید CPU
-    link = LINKS.get(uid)
-    if link is None or not is_link_allowed(link):
-        return False
-    
-    link["used_bytes"] += n
-    stats["total_bytes"] += n
-    
-    # جلوگیری از KeyError در صورت ورود به ساعت جدید
-    hour_key = now_ir().strftime("%H:00")
-    hourly_traffic[hour_key] = hourly_traffic.get(hour_key, 0) + n
-    return True
+    # Keep the quota/accounting update atomic. This matches the previously
+    # working relay behavior and prevents concurrent Android sessions from
+    # racing while updating the same link counters.
+    async with LINKS_LOCK:
+        link = LINKS.get(uid)
+        if link is None or not is_link_allowed(link):
+            return False
+
+        link["used_bytes"] += n
+        stats["total_bytes"] += n
+
+        hour_key = now_ir().strftime("%H:00")
+        hourly_traffic[hour_key] = hourly_traffic.get(hour_key, 0) + n
+        return True
 
 async def relay_ws_to_tcp(ws: WebSocket, writer: asyncio.StreamWriter, conn_id: str, uid: str):
     try:
@@ -161,12 +163,6 @@ async def websocket_tunnel(ws: WebSocket, uuid: str):
             return
 
         command, address, port, payload = await parse_vless_header(first_chunk)
-
-        # پشتیبانی فقط از دستور TCP (command = 1)
-        if command != 1:
-            logger.warning(f"⚠️ Unsupported VLESS command {command} from ip={ip}")
-            await ws.close(code=1003, reason="unsupported command (only TCP supported)")
-            return
 
         if not await check_and_use(uuid, len(first_chunk)):
             await ws.close(code=1008, reason="quota/disabled")

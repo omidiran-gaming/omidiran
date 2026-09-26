@@ -17,6 +17,14 @@
 
 </div>
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/omidiran-gaming/omidiran/main/docs/preview-mobile.png" width="30%" alt="Mobile">
+  <img src="https://raw.githubusercontent.com/omidiran-gaming/omidiran/main/docs/preview-configs.png" width="30%" alt="Configs">
+  <img src="https://raw.githubusercontent.com/omidiran-gaming/omidiran/main/docs/preview-stats.png" width="30%" alt="Stats">
+</p>
+
+---
+
 <div dir="rtl">
 
 ## 🇮🇷 فارسی

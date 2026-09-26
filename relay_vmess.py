@@ -350,8 +350,8 @@ def _decode_request_header(data: bytes, user_uuid: str):
     if fnv != checksum:
         return None, "FNV1a header checksum mismatch"
 
-    # Mux is not routed as a normal host/port target in this relay.
-    if cmd != 1:  # TCP
+    # Support VMess TCP (1) and UDP (2). Mux is intentionally unsupported.
+    if cmd not in (1, 2):
         return None, f"فرمان VMess پشتیبانی نمی‌شود: {cmd}"
 
     return {
@@ -717,6 +717,97 @@ def _tune_socket(writer: asyncio.StreamWriter):
         pass
 
 
+class _VMessUDPProtocol(asyncio.DatagramProtocol):
+    """Asyncio UDP adapter for VMess command=2."""
+    def __init__(self, queue: asyncio.Queue):
+        self.queue = queue
+        self.transport: Optional[asyncio.DatagramTransport] = None
+
+    def connection_made(self, transport):
+        self.transport = transport
+
+    def datagram_received(self, data: bytes, addr):
+        if data:
+            try:
+                self.queue.put_nowait((data, addr))
+            except asyncio.QueueFull:
+                logger.warning("VMess UDP receive queue full; dropping datagram from %s", addr)
+
+    def error_received(self, exc):
+        logger.warning("VMess UDP socket error: %s", exc)
+
+    def connection_lost(self, exc):
+        try:
+            self.queue.put_nowait((None, None))
+        except asyncio.QueueFull:
+            pass
+
+
+async def _open_vmess_udp(host: str, port: int):
+    loop = asyncio.get_running_loop()
+    queue: asyncio.Queue = asyncio.Queue(maxsize=256)
+    transport, protocol = await asyncio.wait_for(
+        loop.create_datagram_endpoint(
+            lambda: _VMessUDPProtocol(queue),
+            remote_addr=(host, port),
+        ),
+        timeout=TCP_CONNECT_TIMEOUT,
+    )
+    return transport, protocol, queue
+
+
+async def _vmess_ws_to_udp(ws: WebSocket, transport: asyncio.DatagramTransport, conn_id: str, uid: str, decoder: _BodyDecoder):
+    try:
+        while True:
+            msg = await ws.receive()
+            if msg["type"] == "websocket.disconnect":
+                break
+            data = msg.get("bytes") or (msg.get("text") or "").encode()
+            if not data:
+                continue
+            if not await check_and_use(uid, len(data)):
+                await ws.close(code=1008, reason="quota/disabled/unknown")
+                break
+            await throttle(uid, len(data))
+            main.stats["total_requests"] += 1
+            if conn_id in main.connections:
+                main.connections[conn_id]["bytes"] += len(data)
+            for datagram in decoder.feed(data):
+                if datagram:
+                    transport.sendto(datagram)
+    except WebSocketDisconnect:
+        pass
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:
+        logger.warning(f"⚠️ VMess UDP uplink error [{conn_id}]: {exc}")
+    finally:
+        try:
+            decoder.finish()
+        except Exception:
+            pass
+
+
+async def _vmess_udp_to_ws(ws: WebSocket, queue: asyncio.Queue, conn_id: str, uid: str, encoder: _BodyEncoder):
+    try:
+        while True:
+            data, _addr = await queue.get()
+            if data is None:
+                break
+            if not await check_and_use(uid, len(data)):
+                await ws.close(code=1008, reason="quota/disabled/unknown")
+                break
+            await throttle(uid, len(data))
+            if conn_id in main.connections:
+                main.connections[conn_id]["bytes"] += len(data)
+            for chunk in encoder.encode(data):
+                await ws.send_bytes(chunk)
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:
+        logger.warning(f"⚠️ VMess UDP downlink error [{conn_id}]: {exc}")
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # Data transfer: WebSocket → TCP
 # ══════════════════════════════════════════════════════════════════════════════
@@ -839,6 +930,7 @@ async def websocket_tunnel_vmess(websocket: WebSocket, uuid: str):
     )
 
     target_writer: Optional[asyncio.StreamWriter] = None
+    udp_transport: Optional[asyncio.DatagramTransport] = None
     tasks: set[asyncio.Task] = set()
 
     try:
@@ -882,24 +974,7 @@ async def websocket_tunnel_vmess(websocket: WebSocket, uuid: str):
 
         host = header_info["host"]
         port = header_info["port"]
-
-        # ── Connect to target ──
-        try:
-            reader, writer = await asyncio.wait_for(
-                asyncio.open_connection(host, port),
-                timeout=TCP_CONNECT_TIMEOUT,
-            )
-            target_writer = writer
-            _tune_socket(writer)
-        except Exception as exc:
-            logger.error(f"VMess connect failed {host}:{port} -> {exc}")
-            await websocket.close(code=4003, reason="امکان اتصال به مقصد نیست")
-            return
-
-        logger.info(
-            f"➡️ VMess [{conn_id}] → {host}:{port} "
-            f"sec_type={sec_type}"
-        )
+        is_udp = header_info["cmd"] == 2
 
         # ── Body framing / codecs ──
         request_framer = _VMessBodyFramer(
@@ -918,42 +993,49 @@ async def websocket_tunnel_vmess(websocket: WebSocket, uuid: str):
             length_key=header_info["req_key"],
             length_iv=header_info["req_iv"],
         )
-
         request_decoder = _BodyDecoder(request_framer)
         response_encoder = _BodyEncoder(response_framer)
 
-        # ── Send any body records carried after the request header ──
-        body_init = header_info["body_init"]
-        if body_init:
-            for plaintext in request_decoder.feed(body_init):
-                writer.write(plaintext)
-            await writer.drain()
-
-        # ── Send AEAD-encrypted response header ──
-        resp_header = _build_response_header(header_info)
-        await websocket.send_bytes(resp_header)
-
-        # ── Bidirectional relay ──
-        tasks = {
-            asyncio.create_task(
-                _vmess_ws_to_tcp(
-                    websocket,
-                    writer,
-                    conn_id,
-                    real_uid,
-                    request_decoder,
+        if is_udp:
+            udp_transport, udp_protocol, udp_queue = await _open_vmess_udp(host, port)
+            logger.info(f"➡️ VMess UDP [{conn_id}] → {host}:{port} sec_type={sec_type}")
+            body_init = header_info["body_init"]
+            if body_init:
+                for datagram in request_decoder.feed(body_init):
+                    if datagram:
+                        udp_transport.sendto(datagram)
+            resp_header = _build_response_header(header_info)
+            await websocket.send_bytes(resp_header)
+            tasks = {
+                asyncio.create_task(_vmess_ws_to_udp(websocket, udp_transport, conn_id, real_uid, request_decoder)),
+                asyncio.create_task(_vmess_udp_to_ws(websocket, udp_queue, conn_id, real_uid, response_encoder)),
+            }
+        else:
+            # ── Connect to target ──
+            try:
+                reader, writer = await asyncio.wait_for(
+                    asyncio.open_connection(host, port),
+                    timeout=TCP_CONNECT_TIMEOUT,
                 )
-            ),
-            asyncio.create_task(
-                _vmess_tcp_to_ws(
-                    websocket,
-                    reader,
-                    conn_id,
-                    real_uid,
-                    response_encoder,
-                )
-            ),
-        }
+                target_writer = writer
+                _tune_socket(writer)
+            except Exception as exc:
+                logger.error(f"VMess connect failed {host}:{port} -> {exc}")
+                await websocket.close(code=4003, reason="امکان اتصال به مقصد نیست")
+                return
+
+            logger.info(f"➡️ VMess [{conn_id}] → {host}:{port} sec_type={sec_type}")
+            body_init = header_info["body_init"]
+            if body_init:
+                for plaintext in request_decoder.feed(body_init):
+                    writer.write(plaintext)
+                await writer.drain()
+            resp_header = _build_response_header(header_info)
+            await websocket.send_bytes(resp_header)
+            tasks = {
+                asyncio.create_task(_vmess_ws_to_tcp(websocket, writer, conn_id, real_uid, request_decoder)),
+                asyncio.create_task(_vmess_tcp_to_ws(websocket, reader, conn_id, real_uid, response_encoder)),
+            }
 
         done, pending = await asyncio.wait(
             tasks,
@@ -1002,6 +1084,12 @@ async def websocket_tunnel_vmess(websocket: WebSocket, uuid: str):
             try:
                 target_writer.close()
                 await target_writer.wait_closed()
+            except Exception:
+                pass
+
+        if udp_transport is not None:
+            try:
+                udp_transport.close()
             except Exception:
                 pass
 
