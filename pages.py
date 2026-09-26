@@ -140,7 +140,7 @@ __LOGIN_CSS__
 <div class="scan"></div><div class="shell">
   <div class="hud"><span class="kicker">OMID-01 / SECURE ACCESS GATE</span><div style="display:flex;gap:6px"><button class="lang" id="lang-login" type="button">EN</button><button class="lang" id="theme-login" type="button">☼</button></div></div>
   <div class="card">
-    <div class="brand"><div class="brand-img"><img src="data:image/png;base64,__LOGO_B64__" alt="OMID"></div><div><div class="brand-name">OMID-IRAN PANEL</div><div class="brand-sub">Free For All · v2.0.0</div></div></div>
+    <div class="brand"><div class="brand-img"><img src="data:image/png;base64,__LOGO_B64__" alt="OMID"></div><div><div class="brand-name">OMID-IRAN PANEL</div><div class="brand-sub">Free For All · v2.5.0</div></div></div>
     <h1>Sign in to <span class="accent">OMID-IRAN PANEL</span></h1>
     <p class="sub">Enter your credentials to access the control panel</p>
     <div class="err" id="err"><i class="ti ti-alert-circle"></i><span id="err-text"></span></div>
@@ -151,7 +151,7 @@ __LOGIN_CSS__
     </form>
     <div class="meta-grid"><div class="meta"><span>NETWORK</span><b>OMID Network</b></div><div class="meta"><span>STATUS</span><b class="ok">● SYSTEM ONLINE</b></div></div>
     <div style="margin-top:10px;text-align:center;font-size:8.5px;color:var(--t3)">First run default: <b style="color:var(--accent)">omid / omid</b> · Support: <a href="https://t.me/omid_gamingORG" target="_blank" style="color:var(--accent-2);text-decoration:none">@omid_gamingORG</a></div>
-    <div class="foot"><span>Free For All</span><span>OMID-IRAN PANEL · v2.0.0</span></div>
+    <div class="foot"><span>Free For All</span><span>OMID-IRAN PANEL · v2.5.0</span></div>
   </div>
 </div>
 <script>
@@ -428,7 +428,7 @@ __DASHBOARD_CSS__
 <div class="mob-top">
   <div class="ml">
     <div class="mob-logo"><img src="data:image/png;base64,__LOGO_B64__" alt="OMID"></div>
-    <div class="mob-brand-copy"><span class="mob-title">OMID-IRAN PANEL</span><span class="mob-subtitle">Free For All · v2.0.0</span></div>
+    <div class="mob-brand-copy"><span class="mob-title">OMID-IRAN PANEL</span><span class="mob-subtitle">Free For All · v2.5.0</span></div>
   </div>
   <div class="mob-right">
     <span class="top-status"><span class="dot dg pulse"></span> SYSTEM ONLINE</span>
@@ -442,7 +442,7 @@ __DASHBOARD_CSS__
   <button class="sb-close" id="close-sb"><i class="ti ti-x"></i></button>
   <div class="logo">
     <div class="logo-img"><img src="data:image/png;base64,__LOGO_B64__" alt="OMID"></div>
-    <div><div class="logo-name">OMID-IRAN PANEL</div><div class="logo-sub">Free For All · v2.0.0</div><div class="logo-meta">OMID NETWORK NODE</div></div>
+    <div><div class="logo-name">OMID-IRAN PANEL</div><div class="logo-sub">Free For All · v2.5.0</div><div class="logo-meta">OMID NETWORK NODE</div></div>
   </div>
   <div class="side-telemetry">
     <div class="telemetry-head"><span>CORE TELEMETRY</span><span class="telemetry-led"></span></div>
@@ -533,7 +533,7 @@ __DASHBOARD_CSS__
     </div>
   </div>
   <div class="dash-footer">
-    <span class="df-text">OMID-IRAN PANEL v2.0.0 · OMID Network</span>
+    <span class="df-text">OMID-IRAN PANEL v2.5.0 · OMID Network</span>
     
     
   </div>
@@ -959,7 +959,7 @@ __DASHBOARD_CSS__
       </div>
       <div class="srv-tiles">
         <div class="srv-tile"><div class="srv-tile-icon"><i class="ti ti-route"></i></div><div class="srv-tile-text"><div class="srv-tile-label">Default port</div><div class="srv-tile-val">443 (TLS) · configurable per configuration</div></div></div>
-        <div class="srv-tile"><div class="srv-tile-icon"><i class="ti ti-versions"></i></div><div class="srv-tile-text"><div class="srv-tile-label">Version</div><div class="srv-tile-val">v2.0.0</div></div></div>
+        <div class="srv-tile"><div class="srv-tile-icon"><i class="ti ti-versions"></i></div><div class="srv-tile-text"><div class="srv-tile-label">Version</div><div class="srv-tile-val">v2.5.0</div></div></div>
         <div class="srv-tile"><div class="srv-tile-icon"><i class="ti ti-bolt"></i></div><div class="srv-tile-text"><div class="srv-tile-label">Framework</div><div class="srv-tile-val">FastAPI + Uvicorn</div></div></div>
         <div class="srv-tile"><div class="srv-tile-icon"><i class="ti ti-device-floppy"></i></div><div class="srv-tile-text"><div class="srv-tile-label">Storage</div><div class="srv-tile-val">JSON File (/data)</div></div></div>
         <div class="srv-tile" style="grid-column:1/-1">

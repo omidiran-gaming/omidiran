@@ -850,7 +850,7 @@ __THEME_CSS__
           <div class="settings-label">OMID Network</div>
           <div class="settings-sub" data-i18n="version">Version</div>
         </div>
-        <div class="settings-value">v2.0.0</div>
+        <div class="settings-value">v2.5.0</div>
       </div>
     </div>
   </section>

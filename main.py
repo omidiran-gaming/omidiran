@@ -91,7 +91,7 @@ async def lifespan(app: FastAPI):
     autosave_task = asyncio.create_task(_autosave_loop(), name="omid-state-autosave")
     log_activity("system", "Server started", "ok")
     logger.info(
-        f"OMID-IRAN PANEL v2.0.0 started on port {CONFIG['port']} "
+        f"OMID-IRAN PANEL v2.5.0 started on port {CONFIG['port']} "
         f"| DATA_DIR={DATA_DIR} | STATE_FILE={DATA_FILE}"
     )
 
